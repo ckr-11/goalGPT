@@ -1,0 +1,100 @@
+{
+    "output": {
+        "match_prediction": {
+            "win_probabilities": {
+                "home_team": {
+                    "team": "Argentina",
+                    "probability": 48
+                },
+                "draw": {
+                    "probability": 25
+                },
+                "away_team": {
+                    "team": "Brazil",
+                    "probability": 27
+                }
+            }
+        },
+        "score_prediction": {
+            "predicted_scoreline": {
+                "home_team": "Argentina",
+                "home_goals": 2,
+                "away_team": "Brazil",
+                "away_goals": 1
+            },
+            "total_goals": 3
+        },
+        "goal_insights": {
+            "first_team_to_score": {
+                "team": "Argentina",
+                "probability": 58
+            },
+            "both_teams_to_score": {
+                "prediction": true,
+                "probability": 67
+            }
+        },
+        "player_prediction": {
+            "home_team": {
+                "team": "Argentina",
+                "goal": [
+                    {
+                        "name": "Lionel Messi",
+                        "predictions": [
+                            {
+                                "goal_count": 1,
+                                "probability": 60
+                            },
+                            {
+                                "goal_count": 2,
+                                "probability": 40
+                            }
+                        ]
+                    },
+                    {
+                        "name": "Julian Alvarez",
+                        "predictions": [
+                            {
+                                "goal_count": 1,
+                                "probability": 38
+                            }
+                        ]
+                    }
+                ],
+                "clean_sheet_prediction": {
+                    "goalkeeper": "E. Martinez",
+                    "prediction": true,
+                    "probability": 32
+                }
+            },
+            "away_team": {
+                "team": "Brazil",
+                "goal": [
+                    {
+                        "name": "Vinicius Jr",
+                        "predictions": [
+                            {
+                                "goal_count": 1,
+                                "probability": 40
+                            }
+                        ]
+                    },
+                    {
+                        "name": "Rodrygo",
+                        "predictions": [
+                            {
+                                "goal_count": 1,
+                                "probability": 40
+                            }
+                        ]
+                    }
+                ],
+                "clean_sheet_prediction": {
+                    "goalkeeper": "Alisson",
+                    "prediction": false,
+                    "probability": 82
+                }
+            }
+        }
+    }
+}
