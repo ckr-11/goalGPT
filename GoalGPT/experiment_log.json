@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-07-06T09:02:25.601620+00:00",
+  "version": null,
+  "training_matches": 49555,
+  "teams_tracked": 343,
+  "elo_k_factor": 32,
+  "xg_blend": {
+    "attack": 0.56,
+    "defence": 0.34,
+    "average": 0.1
+  },
+  "h2h_blend": {
+    "statistical": 0.82,
+    "h2h": 0.18
+  },
+  "ml_blend": {
+    "ml": 0.68,
+    "poisson": 0.32
+  },
+  "ml_enabled": true,
+  "training_seconds": 30.58,
+  "model_file": "goalgpt_v5.pkl"
+}

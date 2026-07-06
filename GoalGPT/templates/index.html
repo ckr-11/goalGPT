@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+
+{% block title %}GoalGPT — Football Prediction AI{% endblock %}
+
+{% block content %}
+        <!-- Main Form & Dropdowns Grid -->
+        <section class="predictor-card card">
+            <div class="card-header">
+                <h2><i class="fa-solid fa-shuffle"></i> Match Predictor</h2>
+                <p>Select two teams from the FIFA World Cup 2026 participants roster to simulate the match outcome.</p>
+            </div>
+            
+            <form id="prediction-form" class="predictor-form">
+                <div class="selection-grid">
+                    <!-- Home Team -->
+                    <div class="team-select-group">
+                        <label for="home-search">Home Team</label>
+                        <div class="search-dropdown-wrapper" id="home-dropdown-wrapper">
+                            <div class="input-icon-wrapper">
+                                <i class="fa-solid fa-house team-icon home-color"></i>
+                                <input type="text" id="home-search" class="search-input" placeholder="Search Home Team..." autocomplete="off">
+                                <i class="fa-solid fa-chevron-down arrow-icon"></i>
+                            </div>
+                            <div class="dropdown-list hidden" id="home-options"></div>
+                        </div>
+                    </div>
+
+                    <!-- Versus Divider -->
+                    <div class="vs-divider">
+                        <span>VS</span>
+                    </div>
+
+                    <!-- Away Team -->
+                    <div class="team-select-group">
+                        <label for="away-search">Away Team</label>
+                        <div class="search-dropdown-wrapper" id="away-dropdown-wrapper">
+                            <div class="input-icon-wrapper">
+                                <i class="fa-solid fa-plane-arrival team-icon away-color"></i>
+                                <input type="text" id="away-search" class="search-input" placeholder="Search Away Team..." autocomplete="off">
+                                <i class="fa-solid fa-chevron-down arrow-icon"></i>
+                            </div>
+                            <div class="dropdown-list hidden" id="away-options"></div>
+                        </div>
+                    </div>
+                </div>
+                
+
+
+                <div class="button-area">
+                    <button type="submit" id="submit-btn" class="primary-btn">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Predict Match
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Loading View -->
+        <section id="loading-state" class="loading-state card hidden">
+            <div class="spinner-wrapper">
+                <div class="loading-spinner"></div>
+            </div>
+            <h3>Generating prediction...</h3>
+            <p>Processing historical metrics, Elo ratings, manager ratings, and player lineups...</p>
+        </section>
+
+        <!-- Error Panel -->
+        <div id="error-panel" class="error-panel hidden">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <div class="error-details">
+                <h4 id="error-title">Validation Error</h4>
+                <p id="error-desc">Please verify your inputs and try again.</p>
+                <div id="error-suggestions" class="suggestions-list hidden"></div>
+            </div>
+        </div>
+
+        <!-- Dashboard / Prediction Results View -->
+        <div id="prediction-dashboard" class="dashboard-grid hidden">
+            
+            <!-- Left Panel: Summaries & Probabilities -->
+            <div class="dashboard-left">
+                <!-- Match Summary Card -->
+                <section class="card match-summary-card">
+                    <div class="summary-header">
+                        <span class="badge" id="confidence-badge">High Confidence</span>
+                        <span class="timestamp" id="match-timestamp"></span>
+                    </div>
+                    
+                    <div class="scoreboard">
+                        <div class="team-block home">
+                            <h3 id="score-home-name">Brazil</h3>
+                            <span class="xg-val" id="xg-home">xG 1.45</span>
+                        </div>
+                        <div class="score-display">
+                            <span class="goals" id="score-val">2 - 1</span>
+                        </div>
+                        <div class="team-block away">
+                            <h3 id="score-away-name">Spain</h3>
+                            <span class="xg-val" id="xg-away">xG 1.10</span>
+                        </div>
+                    </div>
+
+                    <div class="winner-announcement">
+                        <i class="fa-solid fa-trophy winner-icon"></i>
+                        <p>Predicted Outcome: <strong id="predicted-winner-text">Brazil Win</strong></p>
+                    </div>
+
+                    <!-- Probabilities Progress Bars -->
+                    <div class="probabilities-section">
+                        <h4>Win Probabilities</h4>
+                        <div class="bars-container">
+                            <!-- Home Win -->
+                            <div class="prob-row">
+                                <span class="label" id="prob-home-label">Brazil Win</span>
+                                <div class="progress-bar-wrapper">
+                                    <div class="progress-bar home-bar" id="prob-home-bar" style="width: 45%;"></div>
+                                </div>
+                                <span class="pct" id="prob-home-val">45%</span>
+                            </div>
+                            <!-- Draw -->
+                            <div class="prob-row">
+                                <span class="label">Draw</span>
+                                <div class="progress-bar-wrapper">
+                                    <div class="progress-bar draw-bar" id="prob-draw-bar" style="width: 26%;"></div>
+                                </div>
+                                <span class="pct" id="prob-draw-val">26%</span>
+                            </div>
+                            <!-- Away Win -->
+                            <div class="prob-row">
+                                <span class="label" id="prob-away-label">Spain Win</span>
+                                <div class="progress-bar-wrapper">
+                                    <div class="progress-bar away-bar" id="prob-away-bar" style="width: 29%;"></div>
+                                </div>
+                                <span class="pct" id="prob-away-val">29%</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Penalty Shootout Forecast -->
+                <section id="shootout-card" class="card shootout-card hidden">
+                    <div class="card-header-shootout">
+                        <h3><i class="fa-solid fa-circle-play"></i> Penalty Shootout Forecast</h3>
+                        <p>Knockout match predicted as a draw in regulation/extra time. Simulation determines shootout win probabilities.</p>
+                    </div>
+                    <div class="shootout-winner">
+                        <i class="fa-solid fa-trophy winner-icon"></i>
+                        <p>Predicted Shootout Winner: <strong id="shootout-predicted-winner">Brazil</strong></p>
+                    </div>
+                    <div class="bars-container">
+                        <!-- Home Shootout Win -->
+                        <div class="prob-row">
+                            <span class="label" id="shootout-home-label">Brazil</span>
+                            <div class="progress-bar-wrapper">
+                                <div class="progress-bar home-bar" id="shootout-home-bar" style="width: 50%;"></div>
+                            </div>
+                            <span class="pct" id="shootout-home-val">50%</span>
+                        </div>
+                        <!-- Away Shootout Win -->
+                        <div class="prob-row">
+                            <span class="label" id="shootout-away-label">Spain</span>
+                            <div class="progress-bar-wrapper">
+                                <div class="progress-bar away-bar" id="shootout-away-bar" style="width: 50%;"></div>
+                            </div>
+                            <span class="pct" id="shootout-away-val">50%</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Goal Insights -->
+                <section class="card goal-insights-card">
+                    <h3><i class="fa-solid fa-lightbulb"></i> Goal Insights</h3>
+                    <div class="insights-grid">
+                        <div class="insight-item">
+                            <div class="icon-wrap"><i class="fa-solid fa-flag"></i></div>
+                            <div class="details">
+                                <span class="title">First Team To Score</span>
+                                <strong id="insight-first-team">Brazil (49%)</strong>
+                            </div>
+                        </div>
+                        <div class="insight-item">
+                            <div class="icon-wrap"><i class="fa-solid fa-arrows-left-right"></i></div>
+                            <div class="details">
+                                <span class="title">Both Teams To Score</span>
+                                <strong id="insight-btts">Yes (57%)</strong>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Explanation: Why this prediction? -->
+                <section class="card explanation-card">
+                    <h3><i class="fa-solid fa-circle-question"></i> Why this prediction?</h3>
+                    <ul class="explanation-list" id="explanation-list"></ul>
+                </section>
+            </div>
+
+            <!-- Right Panel: Comparisons & Player Stats -->
+            <div class="dashboard-right">
+                <!-- Comparison Factors Table -->
+                <section class="card comparisons-card">
+                    <h3><i class="fa-solid fa-scale-balanced"></i> Match Prediction Factors</h3>
+                    <div class="table-responsive">
+                        <table class="factors-table">
+                            <thead>
+                                <tr>
+                                    <th id="table-home-hdr">Home</th>
+                                    <th>Factor</th>
+                                    <th id="table-away-hdr">Away</th>
+                                </tr>
+                            </thead>
+                            <tbody id="factors-table-body">
+                                <!-- Populated dynamically by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Clean Sheet & Goalkeepers -->
+                <section class="card goalkeeper-card">
+                    <h3><i class="fa-solid fa-shield-halved"></i> Goalkeeper & Clean Sheets</h3>
+                    <div class="goalkeeper-grid">
+                        <div class="gk-block home">
+                            <div class="gk-icon"><i class="fa-solid fa-hands-gloves"></i></div>
+                            <strong id="gk-home-name">R. Alisson</strong>
+                            <span class="role">Home Goalkeeper</span>
+                            <div class="clean-sheet-badge" id="gk-home-cs">Clean Sheet: 23%</div>
+                        </div>
+                        <div class="gk-block away">
+                            <div class="gk-icon"><i class="fa-solid fa-hands-gloves"></i></div>
+                            <strong id="gk-away-name">U. Simon</strong>
+                            <span class="role">Away Goalkeeper</span>
+                            <div class="clean-sheet-badge" id="gk-away-cs">Clean Sheet: 26%</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Player Goalscorers -->
+                <section class="card player-predictions-card">
+                    <h3><i class="fa-solid fa-shoe-prints"></i> Goalscorer Predictions</h3>
+                    <div class="player-cols">
+                        <div class="player-col" id="player-home-scorers-col">
+                            <h4 id="player-home-title">Home Scorers</h4>
+                            <ul class="player-list" id="player-home-scorers"></ul>
+                        </div>
+                        <div class="player-col" id="player-away-scorers-col">
+                            <h4 id="player-away-title">Away Scorers</h4>
+                            <ul class="player-list" id="player-away-scorers"></ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Manager Profiles -->
+                <section class="card manager-comparison-card">
+                    <h3><i class="fa-solid fa-user-tie"></i> Manager Profiles</h3>
+                    <div class="manager-grid">
+                        <div class="manager-card" id="mgr-home-card">
+                            <h4 id="mgr-home-name">Manager Name</h4>
+                            <div class="mgr-rating" id="mgr-home-rating">Rating: 1.0</div>
+                            <div class="mgr-stats">
+                                <div><span>Win Ratio:</span> <strong id="mgr-home-win">50%</strong></div>
+                                <div><span>Loss Ratio:</span> <strong id="mgr-home-loss">25%</strong></div>
+                                <div><span>Avg Scored:</span> <strong id="mgr-home-scored">1.5</strong></div>
+                                <div><span>Avg Conceded:</span> <strong id="mgr-home-conceded">1.5</strong></div>
+                            </div>
+                        </div>
+                        <div class="manager-card" id="mgr-away-card">
+                            <h4 id="mgr-away-name">Manager Name</h4>
+                            <div class="mgr-rating" id="mgr-away-rating">Rating: 1.0</div>
+                            <div class="mgr-stats">
+                                <div><span>Win Ratio:</span> <strong id="mgr-away-win">50%</strong></div>
+                                <div><span>Loss Ratio:</span> <strong id="mgr-away-loss">25%</strong></div>
+                                <div><span>Avg Scored:</span> <strong id="mgr-away-scored">1.5</strong></div>
+                                <div><span>Avg Conceded:</span> <strong id="mgr-away-conceded">1.5</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- History Section (Session Only) -->
+        <section class="history-section card" id="history-container">
+            <div class="card-header">
+                <h3><i class="fa-solid fa-clock-rotate-left"></i> Prediction History (Session)</h3>
+                <button id="clear-history" class="clear-btn">Clear</button>
+            </div>
+            <div class="table-responsive">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Home Team</th>
+                            <th>Away Team</th>
+                            <th>Winner</th>
+                            <th>Score</th>
+                            <th>Time</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-rows">
+                        <tr id="empty-history">
+                            <td colspan="6" class="text-center">No predictions simulated in this session.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+{% endblock %}

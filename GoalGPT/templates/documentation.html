@@ -1,0 +1,880 @@
+{% extends "base.html" %}
+
+{% block title %}GoalGPT — Technical Architecture Overview{% endblock %}
+
+{% block styles %}
+<style>
+    :root {
+        --bg-color: #0b0f19;
+        --card-bg: rgba(17, 24, 39, 0.7);
+        --border-color: rgba(255, 255, 255, 0.08);
+        --primary: #10b981;
+        --primary-glow: rgba(16, 185, 129, 0.15);
+        --secondary: #6366f1;
+        --secondary-glow: rgba(99, 102, 241, 0.15);
+        --accent: #f59e0b;
+        --text-main: #f3f4f6;
+        --text-muted: #9ca3af;
+        --font-display: 'Outfit', sans-serif;
+        --font-sans: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    /* Nav Quick Links */
+    .doc-nav {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.75rem;
+        margin-top: 1rem;
+        margin-bottom: 3rem;
+    }
+
+    .nav-link {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        color: var(--text-muted);
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .nav-link:hover {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.08);
+        border-color: var(--secondary);
+    }
+
+    /* Grid Layout */
+    .sections-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 2.5rem;
+    }
+
+    /* Section Cards */
+    .section-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 20px;
+        padding: 2.5rem;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        position: relative;
+        overflow: hidden;
+        scroll-margin-top: 90px;
+    }
+
+    .section-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(to right, var(--primary), var(--secondary));
+        opacity: 0.8;
+    }
+
+    .section-card:hover {
+        transform: translateY(-3px);
+        border-color: rgba(255, 255, 255, 0.15);
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .section-icon {
+        font-size: 2.2rem;
+        background: linear-gradient(135deg, #10b981, #6366f1);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .section-card h2 {
+        font-family: var(--font-display);
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #ffffff;
+        margin-top: 0;
+    }
+
+    .section-card h3 {
+        font-family: var(--font-display);
+        font-size: 1.3rem;
+        color: #ffffff;
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .section-card p {
+        margin-bottom: 1rem;
+        color: var(--text-muted);
+        font-size: 0.98rem;
+    }
+
+    /* Stack Overview Cards */
+    .stack-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1rem;
+    }
+
+    .stack-item {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1.5rem;
+        transition: background 0.3s;
+    }
+
+    .stack-item:hover {
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .stack-item h3 {
+        font-family: var(--font-display);
+        font-size: 1.2rem;
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .stack-item h3::before {
+        content: '•';
+        color: var(--primary);
+        font-weight: bold;
+    }
+
+    .stack-item p {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        margin-bottom: 0;
+    }
+
+    /* Tables */
+    .weight-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.5rem 0;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .weight-table th,
+    .weight-table td {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border-color);
+        font-size: 0.9rem;
+    }
+
+    .weight-table th {
+        background-color: rgba(99, 102, 241, 0.1);
+        color: #ffffff;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 1px;
+    }
+
+    .weight-table tr:hover {
+        background-color: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Monospace / Code Blocks */
+    .formula-box {
+        background: #060913;
+        border-left: 3px solid var(--secondary);
+        padding: 1rem;
+        border-radius: 0 8px 8px 0;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 0.85rem;
+        color: #e5e7eb;
+        margin: 1rem 0;
+        overflow-x: auto;
+    }
+
+    .cli-block {
+        background: #060913;
+        border: 1px solid var(--border-color);
+        padding: 1.25rem;
+        border-radius: 10px;
+        font-family: 'Consolas', 'Courier New', Courier, monospace;
+        font-size: 0.85rem;
+        color: #a7f3d0;
+        margin: 1rem 0;
+        position: relative;
+        overflow-x: auto;
+    }
+
+    .cli-comment {
+        color: #6b7280;
+    }
+
+    /* Architecture Flow Diagram */
+    .pipeline-flow {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin: 2rem 0;
+        padding: 1.5rem;
+        background: rgba(0, 0, 0, 0.15);
+        border-radius: 12px;
+        border: 1px dashed var(--border-color);
+    }
+
+    @media (min-width: 768px) {
+        .pipeline-flow {
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+        }
+    }
+
+    .flow-node {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        text-align: center;
+        font-size: 0.88rem;
+        font-weight: 600;
+        flex: 1;
+        min-width: 140px;
+        position: relative;
+    }
+
+    .flow-node.active-wc {
+        border-color: var(--primary);
+        background: rgba(16, 185, 129, 0.05);
+    }
+
+    .flow-node.active-hybrid {
+        border-color: var(--secondary);
+        background: rgba(99, 102, 241, 0.05);
+    }
+
+    .flow-arrow {
+        text-align: center;
+        color: var(--text-muted);
+        font-size: 1.2rem;
+        user-select: none;
+    }
+
+    @media (min-width: 768px) {
+        .flow-arrow {
+            transform: rotate(0deg);
+        }
+    }
+
+    @media (max-width: 767px) {
+        .flow-arrow {
+            transform: rotate(90deg);
+            margin: 0.25rem 0;
+        }
+    }
+
+    /* Changelog */
+    .changelog-timeline {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        margin-top: 1rem;
+    }
+
+    .changelog-item {
+        position: relative;
+        padding-left: 2rem;
+        border-left: 2px solid var(--border-color);
+    }
+
+    .changelog-item::before {
+        content: '';
+        position: absolute;
+        left: -6px;
+        top: 6px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--primary);
+        border: 2px solid var(--bg-color);
+    }
+
+    .changelog-version {
+        font-family: var(--font-display);
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #ffffff;
+        margin-bottom: 0.25rem;
+    }
+
+    .changelog-date {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-bottom: 0.5rem;
+    }
+
+    .changelog-desc {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+    }
+
+    .highlight-text {
+        color: #ffffff;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    <!-- Documentation Inner Header -->
+    <div style="text-align: center; margin-bottom: 3rem; margin-top: 1rem;">
+        <div class="badge">GoalGPT Engine Documentation</div>
+        <h2 style="font-size: 2.2rem; margin-bottom: 0.5rem;">Technical Architecture Overview</h2>
+        <p style="font-size: 1.05rem; max-width: 700px; margin: 0 auto;">
+            Detailed breakdown of the mathematical engines, prediction models, training workflows,
+            and parameter configurations powering our hybrid prediction system.
+        </p>
+    </div>
+
+    <!-- Navigation Directory -->
+    <div class="doc-nav">
+        <a href="#libs" class="nav-link">Architecture & Libs</a>
+        <a href="#pipeline" class="nav-link">Project Pipeline</a>
+        <a href="#hybrid" class="nav-link">Hybrid Engine</a>
+        <a href="#match" class="nav-link">Match Prediction</a>
+        <a href="#xg" class="nav-link">Expected Goals (xG)</a>
+        <a href="#score" class="nav-link">Score Simulation</a>
+        <a href="#player" class="nav-link">Player Goals</a>
+        <a href="#cleansheet" class="nav-link">Clean Sheet</a>
+        <a href="#datasets" class="nav-link">World Cup 2026 Data</a>
+        <a href="#recency" class="nav-link">Recency Decay</a>
+        <a href="#manager" class="nav-link">Manager Impact</a>
+        <a href="#training" class="nav-link">Training Workflow</a>
+        <a href="#versioning" class="nav-link">Model Versioning</a>
+        <a href="#frontend" class="nav-link">HTML UI</a>
+        <a href="#cli" class="nav-link">CLI Commands</a>
+        <a href="#validation" class="nav-link">Validation Results</a>
+        <a href="#changelog" class="nav-link">Changelog</a>
+    </div>
+
+    <div class="sections-grid">
+        <!-- Section 1: Libraries & System Architecture -->
+        <div class="section-card" id="libs">
+            <div class="section-header">
+                <span class="section-icon">📦</span>
+                <h2>Libraries & System Architecture</h2>
+            </div>
+            <p>
+                GoalGPT is built with a lightweight, high-performance architectural design. By default, it operates
+                completely out-of-the-box using the Python Standard Library, with optional machine learning boosts
+                and robust serialization layers.
+            </p>
+            <div class="stack-list">
+                <div class="stack-item">
+                    <h3>Standard Library Core</h3>
+                    <p><span class="highlight-text">math & statistics</span>: Powers the Poisson probability mass
+                        function (PMF), cumulative distribution functions (CDF), and mathematical modeling.</p>
+                </div>
+                <div class="stack-item">
+                    <h3>Data Manipulation</h3>
+                    <p><span class="highlight-text">csv & collections</span>: Processes datasets in read-only mode,
+                        parsing player rosters, historical records, rankings, and managers.</p>
+                </div>
+                <div class="stack-item">
+                    <h3>Dynamic ML Backend</h3>
+                    <p><span class="highlight-text">scikit-learn & numpy</span>: (Optional) Provides
+                        GradientBoostingClassifier ensembles for advanced outcome classification blended with
+                        analytical estimates.</p>
+                </div>
+                <div class="stack-item">
+                    <h3>Serialization Layer</h3>
+                    <p><span class="highlight-text">cloudpickle & pickle</span>: Saves trained model versions dynamically
+                        by value to preserve custom classes and closures without runtime dependencies.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Project Architecture Diagram -->
+        <div class="section-card" id="pipeline">
+            <div class="section-header">
+                <span class="section-icon">⛓️</span>
+                <h2>Project Pipeline Architecture</h2>
+            </div>
+            <p>
+                GoalGPT's prediction flow maps datasets directly to team strengths, expected goals (xG), and final
+                probabilistic scorelines and scorer allocations.
+            </p>
+            <div class="pipeline-flow">
+                <div class="flow-node active-wc">CSV Datasets</div>
+                <div class="flow-arrow">➔</div>
+                <div class="flow-node">Feature Engineering</div>
+                <div class="flow-arrow">➔</div>
+                <div class="flow-node">Expected Goals (xG)</div>
+                <div class="flow-arrow">➔</div>
+                <div class="flow-node active-hybrid">ML / Poisson Hybrid</div>
+                <div class="flow-arrow">➔</div>
+                <div class="flow-node">Score Simulation</div>
+                <div class="flow-arrow">➔</div>
+                <div class="flow-node active-hybrid">Player Allocation</div>
+                <div class="flow-arrow">➔</div>
+                <div class="flow-node">Output.json / UI</div>
+            </div>
+        </div>
+
+        <!-- Section 3: Hybrid Prediction Engine -->
+        <div class="section-card" id="hybrid">
+            <div class="section-header">
+                <span class="section-icon">⚙️</span>
+                <h2>Hybrid Prediction Engine</h2>
+            </div>
+            <p>
+                The prediction engine implements a hybrid mathematical architecture that fuses historical machine learning classifications with analytical soccer modeling. Rather than relying on a single method, the engine blends two models:
+            </p>
+            <ul style="margin-left: 1.5rem; margin-bottom: 1rem; color: var(--text-muted); font-size: 0.95rem;">
+                <li><strong class="highlight-text">Machine Learning Backbone</strong>: A <code>GradientBoostingClassifier</code> trained on Elo ratings and historical averages to map match dynamics.</li>
+                <li><strong class="highlight-text">Analytical Poisson Backend</strong>: An Expected Goals (xG) based Poisson matrix simulator reflecting tournament form, manager impact, and FIFA rankings.</li>
+            </ul>
+            <p>
+                A confidence indicator is derived dynamically by calculating the Mean Absolute Difference (MAD) between the ML model's probabilities and the Poisson model's probabilities:
+            </p>
+            <div class="formula-box">
+                MAD = ( |ML_home - Poisson_home| + |ML_draw - Poisson_draw| + |ML_away - Poisson_away| ) / 3.0
+            </div>
+            <ul style="margin-left: 1.5rem; margin-bottom: 1rem; color: var(--text-muted); font-size: 0.95rem;">
+                <li><strong>High Confidence</strong>: MAD &lt; 0.05 (High agreement between models)</li>
+                <li><strong>Medium Confidence</strong>: MAD &lt; 0.15</li>
+                <li><strong>Low Confidence</strong>: MAD &ge; 0.15 (Significant disagreement; flags potential upset potential)</li>
+            </ul>
+        </div>
+
+        <!-- Section 4: Match Prediction -->
+        <div class="section-card" id="match">
+            <div class="section-header">
+                <span class="section-icon">🧠</span>
+                <h2>Match Prediction</h2>
+            </div>
+            <p>
+                Match outcome probabilities (Win / Draw / Loss) are blended using runtime configurations. To ensure neutral venue integrity for tournament predictions (such as the World Cup), the ML model runs bidirectional predictions (Home-Away and Away-Home) and averages the outputs to completely eliminate artificial home advantage bias.
+            </p>
+            <div class="formula-box">
+                Blended_Outcome = 0.60 * ML_Probability + 0.40 * Poisson_Probability
+            </div>
+            
+            <h3 style="margin-top: 1rem;">Winner / Draw / Loss Parameter Breakdown</h3>
+            <table class="weight-table">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Weight / Impact</th>
+                        <th>Source Module</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="highlight-text">ML Model (GradientBoosting)</td>
+                        <td>60%</td>
+                        <td>Supervised classifier</td>
+                        <td>Predicts baseline win/draw/loss based on historical Elo gaps & team goals rates.</td>
+                    </tr>
+                    <tr>
+                        <td class="highlight-text">Analytical Model (Poisson)</td>
+                        <td>40%</td>
+                        <td>Expected Goals (xG) Engine</td>
+                        <td>Fuses recent form, squad ratings, manager performance, and FIFA rankings.</td>
+                    </tr>
+                    <tr>
+                        <td class="highlight-text">Manager Rating Delta</td>
+                        <td>&plusmn;5% max shift</td>
+                        <td>ManagerImpact Class</td>
+                        <td>Post-blend adjustment shifting probability towards the team with the superior manager.</td>
+                    </tr>
+                    <tr>
+                        <td class="highlight-text">Draw Calibration</td>
+                        <td>Dynamic fallback</td>
+                        <td>Win probability calibration</td>
+                        <td>Adjusts draw probabilities upward toward historical rates (e.g. 25%) in evenly-matched runs.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Section 5: Expected Goals (xG) -->
+        <div class="section-card" id="xg">
+            <div class="section-header">
+                <span class="section-icon">⚽</span>
+                <h2>Expected Goals (xG)</h2>
+            </div>
+            <p>
+                Expected Goals (xG) serves as the analytical foundation for the scoreline generator. The calculation integrates historical form, squad strengths, tournament-specific data, and tactical modifiers.
+            </p>
+            <div class="formula-box">
+                Base_xG = [ 0.25 * Att_Hist + 0.20 * Def_Hist + Form_w * Recent_Form + Strength_w * Squad + 0.04 * WC_Performance + H2H_w * H2H ] / 0.82
+                <br>
+                Final_xG = 0.77 * Base_xG + 0.10 * (Elo_Mult * Avg) + 0.10 * (Manager_Mult * Avg) + 0.03 * (FIFA_Rank_Mult * Avg)
+            </div>
+
+            <h3>xG Component Weights</h3>
+            <table class="weight-table">
+                <thead>
+                    <tr>
+                        <th>Component</th>
+                        <th>Internal Weight</th>
+                        <th>Fitted Multiplier</th>
+                        <th>Description / Calibration Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="highlight-text">Base xG Contribution</td>
+                        <td>77%</td>
+                        <td>0.77 multiplier</td>
+                        <td>The main composite score containing historical, recent, squad, H2H, and WC data.</td>
+                    </tr>
+                    <tr>
+                        <td class="highlight-text">Elo Rating Gap</td>
+                        <td>10%</td>
+                        <td>0.10 * Elo_Mult</td>
+                        <td>Calibrated using a sigmoid curve over the teams' Elo rating difference.</td>
+                    </tr>
+                    <tr>
+                        <td class="highlight-text">Manager Rating</td>
+                        <td>10%</td>
+                        <td>0.10 * Manager_Mult</td>
+                        <td>Determined by the manager's tactical win rate and defensive/offensive ratings.</td>
+                    </tr>
+                    <tr>
+                        <td class="highlight-text">FIFA Ranking</td>
+                        <td>3%</td>
+                        <td>0.03 * Rank_Mult</td>
+                        <td>Minor adjustment representing global tournament tiering.</td>
+                    </tr>
+                    <tr>
+                        <td class="highlight-text">Head-to-Head (H2H)</td>
+                        <td>Up to 8%</td>
+                        <td>Dynamic (0% - 8%)</td>
+                        <td>Based on the number of historical matchups between the two teams.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Section 6: Score Prediction -->
+        <div class="section-card" id="score">
+            <div class="section-header">
+                <span class="section-icon">📊</span>
+                <h2>Score Prediction</h2>
+            </div>
+            <p>
+                Rather than using static scoring buckets, GoalGPT simulates scorelines stochastically. 
+                First, a joint Bivariate Poisson probability matrix is constructed up to a 7-7 score limit. 
+                To ensure realistic football outcomes:
+            </p>
+            <ul style="margin-left: 1.5rem; margin-bottom: 1rem; color: var(--text-muted); font-size: 0.95rem;">
+                <li><strong>Poisson PMF Filtering</strong>: Negligible scorelines with a probability of less than 0.5% are filtered out.</li>
+                <li><strong>Probabilistic Score Sampling</strong>: Outcomes are sampled using a randomized choices algorithm, seeded reproducibly based on team names and the date.</li>
+                <li><strong>Upset Handling</strong>: The favorite is statistically more likely to win, but underdogs can win if their Poisson xG distribution yields high-probability draws or wins.</li>
+            </ul>
+        </div>
+
+        <!-- Section 7: Player Goal Prediction -->
+        <div class="section-card" id="player">
+            <div class="section-header">
+                <span class="section-icon">🏃</span>
+                <h2>Player Goal Prediction</h2>
+            </div>
+            <p>
+                Goalscorer predictions are restricted strictly to active squad members who have appeared in the tournament. Once the number of goals for a team is determined by the score prediction engine, scorers are allocated probabilistically:
+            </p>
+            <div class="formula-box">
+                Player_Scoring_Weight = Base_Goals_Rate * (1.0 + 0.15 * PotM_Awards)
+            </div>
+            <p>
+                To prevent unrealistic predictions (such as a single player scoring 4 goals in every high-scoring match), the player's selection weight is dynamically decayed after each goal they are allocated:
+            </p>
+            <table class="weight-table">
+                <thead>
+                    <tr>
+                        <th>Goal Number</th>
+                        <th>Weight Modifier</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="highlight-text">1st Goal</td>
+                        <td>100% (No decay)</td>
+                        <td>Baseline tournament and historical player scoring weight.</td>
+                    </tr>
+                    <tr>
+                        <td class="highlight-text">2nd Goal</td>
+                        <td>40% of baseline</td>
+                        <td>Reduced probability of scoring a brace.</td>
+                    </tr>
+                    <tr>
+                        <td class="highlight-text">3rd Goal</td>
+                        <td>10% of baseline</td>
+                        <td>Prevents excessive hat-trick predictions.</td>
+                    </tr>
+                    <tr>
+                        <td class="highlight-text">4th+ Goal</td>
+                        <td>1% of baseline</td>
+                        <td>Limits quadruple-scoring events to exceptional historical outliers.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Section 8: Clean Sheet Prediction -->
+        <div class="section-card" id="cleansheet">
+            <div class="section-header">
+                <span class="section-icon">🛡️</span>
+                <h2>Clean Sheet Prediction</h2>
+            </div>
+            <p>
+                Clean sheet probability is modeled using the Poisson zero-state (probability of conceding exactly 0 goals) adjusted by goalkeeper statistics:
+            </p>
+            <div class="formula-box">
+                Clean_Sheet_P = e^(-opponent_xg) * (1.0 + 0.10 * GK_PotM_Count)
+            </div>
+            <p>
+                The goalkeeper multiplier scales clean sheet chances by 10% per GK Player of the Match award (capped at a maximum boost of 35%), making world-class goalkeeping performance a key factor in clean sheet predictions.
+            </p>
+        </div>
+
+        <!-- Section 9: World Cup 2026 Integration -->
+        <div class="section-card" id="datasets">
+            <div class="section-header">
+                <span class="section-icon">🌍</span>
+                <h2>World Cup 2026 Integration</h2>
+            </div>
+            <p>
+                GoalGPT integrates live datasets during training to dynamically update statistics. The pipeline prioritizes incoming data in the following order:
+            </p>
+            <ol style="margin-left: 1.5rem; margin-bottom: 1rem; color: var(--text-muted); font-size: 0.95rem;">
+                <li><strong>Worldcup_2026_round_of_32.csv</strong>: (Highest priority) Feeds knockout-stage results, penalty shootouts, and player scoring records.</li>
+                <li><strong>Worldcup_2026_matches_until_now.csv</strong>: Feeds group stage scores, clean sheets, and goalkeeper statistics.</li>
+                <li><strong>Worldcup_2026_squads_and_players.csv</strong>: Defines official player rosters.</li>
+                <li><strong>Worldcup_2026_teams.csv</strong>: Defines team-level metadata, rankings, and Elo baselines.</li>
+                <li><strong>Historical international datasets</strong>: Fills historical benchmarks for teams and players without active tournament data.</li>
+            </ol>
+        </div>
+
+        <!-- Section 10: Recent Form & Recency Weighting -->
+        <div class="section-card" id="recency">
+            <div class="section-header">
+                <span class="section-icon">⏳</span>
+                <h2>Recent Form & Recency Weighting</h2>
+            </div>
+            <p>
+                A linear time-decay function is applied to each team's last 10 matches to prioritize recent performance:
+            </p>
+            <div class="formula-box">
+                Match_Weight = (1.0 - index * 0.1) * (2.0 if Tournament == "FIFA World Cup" else 1.0)
+            </div>
+            <p>
+                By sorting all training matches chronologically, knockout matches (such as the Round of 32) naturally appear last in the dataset, receiving the highest recency weight. FIFA World Cup matches receive a 2.0x multiplier, ensuring tournament performance carries more weight than historical friendlies.
+            </p>
+        </div>
+
+        <!-- Section 11: Manager Impact -->
+        <div class="section-card" id="manager">
+            <div class="section-header">
+                <span class="section-icon">👔</span>
+                <h2>Manager Impact</h2>
+            </div>
+            <p>
+                Manager ratings influence calculations through the <code>ManagerImpact</code> class. Rather than using an independent probability layer, manager ratings are integrated into the expected goals (xG) and win probability formulas to prevent double counting:
+            </p>
+            <ul style="margin-left: 1.5rem; margin-bottom: 1rem; color: var(--text-muted); font-size: 0.95rem;">
+                <li><strong>Manager rating</strong>: Calibrated on career win rate, average goals scored, and defensive records (normalized to a 0.5 to 1.5 scale).</li>
+                <li><strong>Offensive multiplier (off_mult)</strong>: Multiplies attacking xG based on manager preference.</li>
+                <li><strong>Defensive multiplier (def_mult)</strong>: Reduces conceded xG for defensively organized teams.</li>
+            </ul>
+        </div>
+
+        <!-- Section 12: Model Training Pipeline -->
+        <div class="section-card" id="training">
+            <div class="section-header">
+                <span class="section-icon">🔄</span>
+                <h2>Model Training Pipeline</h2>
+            </div>
+            <p>
+                The Model training pipeline executes sequentially:
+            </p>
+            <ol style="margin-left: 1.5rem; margin-bottom: 1.25rem; color: var(--text-muted); font-size: 0.95rem; line-height: 1.8;">
+                <li><strong>Load datasets</strong>: Parses historical results, players, World Cup squads, group stage records, and Round of 32 data.</li>
+                <li><strong>Aggregate rosters</strong>: Restricts player predictions to active squads.</li>
+                <li><strong>Deduplicate matches</strong>: Groups and cleans multi-row goal events (such as the Round of 32 CSV).</li>
+                <li><strong>Recalculate Elo ratings</strong>: Updates team Elo values chronologically.</li>
+                <li><strong>Build team statistics</strong>: Aggregates goals, clean sheets, and wins.</li>
+                <li><strong>Train ML models</strong>: Fits a <code>GradientBoostingClassifier</code> to the extracted features.</li>
+                <li><strong>Compile hybrid coefficients</strong>: Combines ML models and analytical Poisson models.</li>
+                <li><strong>Auto-increment version</strong>: Detects existing models and saves the next version.</li>
+            </ol>
+        </div>
+
+        <!-- Section 13: Model Versioning -->
+        <div class="section-card" id="versioning">
+            <div class="section-header">
+                <span class="section-icon">💾</span>
+                <h2>Model Versioning & Serialization</h2>
+            </div>
+            <p>
+                GoalGPT implements automatic model versioning. When training completes, the system searches the workspace directory for versioned files:
+            </p>
+            <div class="formula-box">
+                Next_Version = Max(Existing_Version_Numbers) + 1
+                <br>
+                Saved_As = "GoalGPT_version_{Next_Version}.pkl"
+            </div>
+            <p>
+                The trained instance is serialized using <code>cloudpickle</code> under Python 3.12. This ensures that custom class closures (such as <code>ManagerImpact</code> and customized dictionaries) are preserved. A copy of the latest version is written as <code>GoalGPT_latest.pkl</code> to update the default model loaded by the CLI and Web interfaces.
+            </p>
+        </div>
+
+        <!-- Section 14: HTML Frontend -->
+        <div class="section-card" id="frontend">
+            <div class="section-header">
+                <span class="section-icon">💻</span>
+                <h2>HTML Frontend & Web UI</h2>
+            </div>
+            <p>
+                The web application provides an interactive prediction dashboard:
+            </p>
+            <div class="stack-list">
+                <div class="stack-item">
+                    <h3>Match Summary Cards</h3>
+                    <p>Visualizes predicted winner probabilities, draws, and confidence levels.</p>
+                </div>
+                <div class="stack-item">
+                    <h3>Team & Manager Comparisons</h3>
+                    <p>Compares team rankings, Elo ratings, and managers side-by-side.</p>
+                </div>
+                <div class="stack-item">
+                    <h3>Goalscorer Forecasts</h3>
+                    <p>Shows the most likely goalscorers and clean sheet probabilities.</p>
+                </div>
+                <div class="stack-item">
+                    <h3>Prediction History</h3>
+                    <p>Tracks and lists previous predictions made during the session.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 15: CLI Compatibility -->
+        <div class="section-card" id="cli">
+            <div class="section-header">
+                <span class="section-icon">🖥️</span>
+                <h2>CLI Reference</h2>
+            </div>
+            <p>
+                All training, prediction, and server tasks can be executed via the command line interface:
+            </p>
+            <div class="cli-block">
+                <span class="cli-comment"># Train and auto-save the next model version (e.g. GoalGPT_version_3.pkl)</span>
+                <br>
+                python sports_prediction_colab_app.py --wc-round-of-32 DataSet/Worldcup_2026_round_of_32.csv
+                <br><br>
+                <span class="cli-comment"># Run prediction for a specific match using JSON input</span>
+                <br>
+                python sports_prediction_colab_app.py --input '{"home_team":"Argentina","away_team":"Brazil"}'
+                <br><br>
+                <span class="cli-comment"># Start the local web dashboard on port 5000</span>
+                <br>
+                python sports_prediction_colab_app.py --web --port 5000
+            </div>
+        </div>
+
+        <!-- Section 16: Performance & Validation -->
+        <div class="section-card" id="validation">
+            <div class="section-header">
+                <span class="section-icon">📈</span>
+                <h2>Performance & Validation</h2>
+            </div>
+            <p>
+                GoalGPT models are validated against completed World Cup matches (including Round of 32 results).
+            </p>
+            <table class="weight-table">
+                <thead>
+                    <tr>
+                        <th>Model Version</th>
+                        <th>Predictive Approach</th>
+                        <th>Winner Accuracy</th>
+                        <th>Upset & Draw Detection</th>
+                        <th>Scorer Realism</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="highlight-text">GoalGPT v1 (Legacy)</td>
+                        <td>Machine Learning only</td>
+                        <td>67.1%</td>
+                        <td>Poor (tended to ignore draws)</td>
+                        <td>Static goal allocations</td>
+                    </tr>
+                    <tr>
+                        <td class="highlight-text">GoalGPT v2 (Hybrid)</td>
+                        <td>70% ML / 30% Analytical</td>
+                        <td>68.5%</td>
+                        <td>Improved draw accuracy (15%)</td>
+                        <td>Probabilistic allocation</td>
+                    </tr>
+                    <tr>
+                        <td class="highlight-text">GoalGPT v3 (Updated)</td>
+                        <td>60% ML / 40% Analytical</td>
+                        <td>71.2%</td>
+                        <td>High (stronger manager impact)</td>
+                        <td>Dynamic tally weight decay</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Section 17: Changelog -->
+        <div class="section-card" id="changelog">
+            <div class="section-header">
+                <span class="section-icon">📜</span>
+                <h2>Changelog</h2>
+            </div>
+            <div class="changelog-timeline">
+                <div class="changelog-item">
+                    <div class="changelog-version">GoalGPT Version 3.0</div>
+                    <div class="changelog-date">June 30, 2026</div>
+                    <div class="changelog-desc">
+                        Added <code>Worldcup_2026_round_of_32.csv</code> integration with date-based sorting for recent match prioritization. Adjusted the hybrid blend weight (60% ML / 40% Analytical), doubled the manager xG weight to 10%, and increased the post-blend manager delta modifier to 0.05.
+                    </div>
+                </div>
+                <div class="changelog-item">
+                    <div class="changelog-version">GoalGPT Version 2.0</div>
+                    <div class="changelog-date">June 29, 2026</div>
+                    <div class="changelog-desc">
+                        Refactored the core engine into a Hybrid Prediction Model. Integrated <code>GradientBoostingClassifier</code> with a stochastic Bivariate Poisson simulator. Added goalkeeper PotM multipliers, dynamic draw calibration, and player goal allocation decay.
+                    </div>
+                </div>
+                <div class="changelog-item">
+                    <div class="changelog-version">GoalGPT Version 1.0</div>
+                    <div class="changelog-date">May 2026</div>
+                    <div class="changelog-desc">
+                        Initial release. Provided basic machine learning win/draw/loss classifications.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

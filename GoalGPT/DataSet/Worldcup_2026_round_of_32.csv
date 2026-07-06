@@ -1,0 +1,8 @@
+date,stage,home_team,away_team,home_score,away_score,extra_time,penalties,winner,scorer,scorer_team,goal_minute,venue
+2026-06-28,Round of 32,Canada,South Africa,1,0,FALSE,FALSE,Canada,Stephen Eustaquio,Canada,92,SoFi Stadium (Los Angeles)
+2026-06-28,Round of 32,Brazil,Japan,2,1,FALSE,FALSE,Brazil,Kaishu Sano,Japan,29,NRG Stadium (Houston)
+2026-06-28,Round of 32,Brazil,Japan,2,1,FALSE,FALSE,Brazil,Casemiro,Brazil,56,NRG Stadium (Houston)
+2026-06-28,Round of 32,Brazil,Japan,2,1,FALSE,FALSE,Brazil,Gabriel Martinelli,Brazil,90,NRG Stadium (Houston)
+2026-06-29,Round of 32,Germany,Paraguay,1,1,TRUE,TRUE,Paraguay,,,,Gillette Stadium (Foxborough)
+2026-06-29,Round of 32,Netherlands,Morocco,1,1,TRUE,TRUE,Morocco,Cody Gakpo,Netherlands,,Monterrey Stadium (Monterrey)
+2026-06-29,Round of 32,Netherlands,Morocco,1,1,TRUE,TRUE,Morocco,Soufiane Rahimi,Morocco,,Monterrey Stadium (Monterrey)
