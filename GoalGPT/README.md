@@ -4,43 +4,26 @@ A championship-grade football prediction AI that forecasts match outcomes, score
 
 ---
 
-## 📋 Project Specifications
-
-- **Application Type**: Hybrid CLI and Flask Web Application.
-- **Core AI/ML Methods**: Poisson Distribution (stochastic modeling), Gradient Boosting (optional via `scikit-learn`), Elo Ratings, Bayesian Shrinkage for small sample tournament data.
-- **Model Version**: GoalGPT v4/v5 (supports advanced metrics like npxG, SoT rates, manager multipliers, and historical shootout predictive modeling).
-- **Tournament Focus**: 2026 FIFA World Cup (incorporating real-time Round of 32 and Round of 16 datasets).
-- **Core Stack**: Pure Python (Standard Library) with optional dependencies (`scikit-learn`, `numpy`). Web UI uses HTML/JS/CSS.
-- **Data Integration**: Integrates historical CSV data (1872–present) with live tournament metrics, generating comprehensive JSON match predictions.
-
----
-
 ## 📁 Project Structure
 
 ```
 GoalGPT/
-├── sports_prediction_colab_app.py   # Main prediction engine (CLI & Web App)
-├── test_engine.py                   # Testing framework for predictions
-├── update_datasets.py               # Utility to manage/update dataset files
-├── goalgpt_v5.pkl                   # Saved/trained model (latest version)
+├── sports_prediction_colab_app.py   # Main prediction engine
+├── generate_mock_data.py            # Legacy synthetic data generator (not used by engine)
+├── GoalGPT_version_1.pkl            # Saved/trained model (auto-generated)
 ├── experiment_log.json              # Training metadata log (auto-generated)
-├── static/                          # Web app static assets (CSS, JS)
-├── templates/                       # Web app HTML templates
 └── DataSet/
     ├── results.csv                       # Full international match history
     ├── goalscorers.csv                   # International goal scorers history
     ├── players.csv                       # Current active squad rosters (source of truth)
     ├── players_data_light-2024_2025.csv  # Club season xG / minutes (2024–25)
     ├── players_data-2024_2025.csv        # Full club season stats (2024–25)
-    ├── fifa_ranking-*.csv                # FIFA rankings files
+    ├── fifa_ranking-2024-06-20.csv       # FIFA rankings
     ├── shootouts.csv                     # Penalty shootout records
-    ├── Manager_dataset.csv               # Manager performance metrics
     ├── former_names.csv                  # Historical team name aliases
     ├── Worldcup_2026_teams.csv           # World Cup participating teams & ratings
     ├── Worldcup_2026_squads_and_players.csv # Squad list of WC players & profiles
-    ├── Worldcup_2026_matches_until_now.csv # Completed tournament match logs
-    ├── Worldcup_2026_round_of_32.csv     # Round of 32 matches
-    └── Worldcup_2026_round_of_16.csv     # Round of 16 matches
+    └── Worldcup_2026_matches_until_now.csv # Completed tournament match logs
 ```
 
 ---
@@ -64,7 +47,7 @@ pip install scikit-learn numpy   # optional
 Trains on all datasets and saves the model to a `.pkl` file for fast future inference.
 
 ```bash
-python3 sports_prediction_colab_app.py --save-model goalgpt_v5.pkl
+python3 sports_prediction_colab_app.py --save-model GoalGPT_version_1.pkl
 ```
 
 > This also writes an `experiment_log.json` with training metadata.
@@ -77,32 +60,18 @@ python3 sports_prediction_colab_app.py --save-model goalgpt_v5.pkl
 python3 sports_prediction_colab_app.py --input '{"home_team": "Argentina", "away_team": "Brazil"}'
 ```
 
-> If `goalgpt_v5.pkl` exists in the working directory, it is **auto-loaded** — no `--load-model` flag needed.
+> If `GoalGPT_version_1.pkl` exists in the working directory, it is **auto-loaded** — no `--load-model` flag needed.
 
 ---
 
 ### 3. Explicitly Load a Saved Model
 
 ```bash
-python3 sports_prediction_colab_app.py --load-model goalgpt_v5.pkl --input '{"home_team": "France", "away_team": "England"}'
-```
+python3 sports_prediction_colab_app.py --load-model GoalGPT_version_1.pkl --input '{"home_team": "France", "away_team": "England"}'
 
 ---
 
-### 4. Run the Web Interface (Flask)
-
-Start the integrated Flask web interface to use GoalGPT from your browser:
-
-```bash
-python3 sports_prediction_colab_app.py --web
-```
-*(Or use the alias: `--serve`)*
-
-The web application will automatically start on `http://localhost:5000`. You can change the port with `--port PORT`.
-
----
-
-### 5. Programmatic Python Usage
+### 3. Programmatic Python Usage
 
 How you load and run the model depends on how you are using the code in Google Colab or Jupyter Notebooks:
 
@@ -117,7 +86,7 @@ import pickle
 sys.modules['sports_prediction_colab_app'] = sys.modules['__main__']
 
 # Load the saved model file directly
-with open("goalgpt_v5.pkl", "rb") as f:
+with open("GoalGPT_version_1.pkl", "rb") as f:
     model = pickle.load(f)
 
 # Run a prediction using a dictionary
@@ -137,7 +106,7 @@ sys.path.append(".")
 from sports_prediction_colab_app import FootballPredictionModel
 
 # Load the saved model file
-with open("goalgpt_v5.pkl", "rb") as f:
+with open("GoalGPT_version_1.pkl", "rb") as f:
     model = pickle.load(f)
 
 # Run a prediction using a dictionary
@@ -147,17 +116,17 @@ print(result["output"]["score_prediction"])
 
 ---
 
-### 6. Train on the Fly (without saving)
+### 4. Train on the Fly (without saving)
 
 ```bash
 python3 sports_prediction_colab_app.py --input '{"home_team": "Spain", "away_team": "Germany"}'
 ```
 
-> If no pre-trained model file exists, the engine trains fresh from the CSVs before predicting.
+> If no `GoalGPT_version_1.pkl` exists, the engine trains fresh from the CSVs before predicting.
 
 ---
 
-### 7. Custom Dataset Paths
+### 5. Custom Dataset Paths
 
 ```bash
 python3 sports_prediction_colab_app.py \
@@ -165,12 +134,9 @@ python3 sports_prediction_colab_app.py \
   --goalscorers     path/to/goalscorers.csv \
   --players         path/to/players_data_light-2024_2025.csv \
   --current-players path/to/players.csv \
-  --manager-data    path/to/Manager_dataset.csv \
   --wc-teams        path/to/Worldcup_2026_teams.csv \
   --wc-squads       path/to/Worldcup_2026_squads_and_players.csv \
   --wc-matches      path/to/Worldcup_2026_matches_until_now.csv \
-  --wc-round-of-32  path/to/Worldcup_2026_round_of_32.csv \
-  --wc-round-of-16  path/to/Worldcup_2026_round_of_16.csv \
   --save-model      my_model.pkl
 ```
 
@@ -185,16 +151,11 @@ python3 sports_prediction_colab_app.py \
 | `--goalscorers` | Path to goal scorers CSV | `DataSet/goalscorers.csv` |
 | `--players` | Path to club season stats CSV (xG source) | `DataSet/players_data_light-2024_2025.csv` |
 | `--current-players` | Path to current squad rosters CSV | `DataSet/players.csv` |
-| `--manager-data` | Path to Manager metrics dataset | `DataSet/Manager_dataset.csv` |
 | `--wc-teams` | Path to World Cup 2026 teams dataset | `DataSet/Worldcup_2026_teams.csv` |
 | `--wc-squads` | Path to World Cup 2026 squads dataset | `DataSet/Worldcup_2026_squads_and_players.csv` |
 | `--wc-matches` | Path to World Cup 2026 match results dataset | `DataSet/Worldcup_2026_matches_until_now.csv` |
-| `--wc-round-of-32` | Path to World Cup 2026 R32 match dataset | `DataSet/Worldcup_2026_round_of_32.csv` |
-| `--wc-round-of-16` | Path to World Cup 2026 R16 match dataset | `DataSet/Worldcup_2026_round_of_16.csv` |
 | `--save-model FILE` | Train and save model to `.pkl` file | — |
 | `--load-model FILE` | Load a pre-trained `.pkl` model | — |
-| `--web` / `--serve` | Start the web application server | — |
-| `--port PORT` | Port number for the web interface | `5000` |
 
 ---
 
@@ -427,12 +388,11 @@ The number of scorers returned per team is determined directly by the `predicted
 | `DataSet/goalscorers.csv` | Historical international goal scorers | Player historical goals |
 | `DataSet/players.csv` | **Current active squad rosters** | Player filtering, GK selection |
 | `DataSet/players_data_light-2024_2025.csv` | Club season xG & minutes (2024–25) | Player xG scoring rates |
-| `DataSet/Manager_dataset.csv` | Manager performance metrics | Adjusting Team attack & defense based on managers |
 | `DataSet/Worldcup_2026_teams.csv` | Pre-tournament FIFA rankings, Elo, and managers | Primary source for participating teams |
 | `DataSet/Worldcup_2026_squads_and_players.csv` | Official squads, positions, goals, and awards | Restricting active players, GK and PotM lookup |
 | `DataSet/Worldcup_2026_matches_until_now.csv` | Live match logs, goals, and player stats | Blending tournament performance & awards |
-| `DataSet/Worldcup_2026_round_of_32.csv` | World Cup 2026 Round of 32 Matches | Updating tournament form |
-| `DataSet/Worldcup_2026_round_of_16.csv` | World Cup 2026 Round of 16 Matches | Updating tournament form |
+
+> **Note:** `generate_mock_data.py` is a legacy development utility. Its hardcoded team/player data is **not used** by the prediction engine.
 
 ---
 
@@ -451,7 +411,7 @@ Every `--save-model` run automatically writes `experiment_log.json`:
   "ml_blend": { "ml": 0.68, "poisson": 0.32 },
   "ml_enabled": false,
   "training_seconds": 4.12,
-  "model_file": "goalgpt_v5.pkl"
+  "model_file": "GoalGPT_version_1.pkl"
 }
 ```
 
@@ -462,7 +422,7 @@ Every `--save-model` run automatically writes `experiment_log.json`:
 | Mode | Typical Time |
 |---|---|
 | First run (train + predict) | ~4–6 seconds |
-| Load from `goalgpt_v5.pkl` + predict | < 1 second |
+| Load from `GoalGPT_version_1.pkl` + predict | < 1 second |
 
 ---
 

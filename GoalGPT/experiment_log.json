@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-07-06T09:02:25.601620+00:00",
+  "timestamp": "2026-07-07T06:55:22.272469+00:00",
   "version": null,
-  "training_matches": 49555,
-  "teams_tracked": 343,
+  "training_matches": 49549,
+  "teams_tracked": 336,
   "elo_k_factor": 32,
   "xg_blend": {
     "attack": 0.56,
@@ -18,6 +18,6 @@
     "poisson": 0.32
   },
   "ml_enabled": true,
-  "training_seconds": 30.58,
-  "model_file": "goalgpt_v5.pkl"
+  "training_seconds": 12.26,
+  "model_file": "goalgpt_v6.pkl"
 }
