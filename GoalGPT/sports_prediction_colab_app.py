@@ -162,8 +162,7 @@ class FootballPredictionModel:
     def __init__(self, results_path=None, goalscorers_path=None, players_path=None,
                  current_players_path=None, manager_path=None,
                  worldcup_teams_path=None, worldcup_squads_path=None,
-                 worldcup_matches_path=None, worldcup_round_of_32_path=None,
-                 worldcup_round_of_16_path=None):
+                 worldcup_matches_path=None, worldcup_round_of_32_path=None):
         def _auto(name):
             ds = Path("DataSet") / name
             return str(ds) if ds.exists() else name
@@ -178,7 +177,6 @@ class FootballPredictionModel:
         self.worldcup_squads_path      = Path(worldcup_squads_path      or _auto("Worldcup_2026_squads_and_players.csv"))
         self.worldcup_matches_path     = Path(worldcup_matches_path     or _auto("Worldcup_2026_matches_until_now.csv"))
         self.worldcup_round_of_32_path = Path(worldcup_round_of_32_path or _auto("Worldcup_2026_round_of_32.csv"))
-        self.worldcup_round_of_16_path = Path(worldcup_round_of_16_path or _auto("Worldcup_2026_round_of_16.csv"))
 
         # Manager impact module (read-only; gracefully neutral if file absent)
         self.manager_impact = ManagerImpact(self.manager_path)
@@ -220,11 +218,187 @@ class FootballPredictionModel:
         self.gk_potm_counts         = Counter()
         self.wc_players_appeared    = set()
         self.r32_team_pairs         = frozenset()  # populated by _load_worldcup_round_of_32
-        self.r16_team_pairs         = frozenset()
+
+        # Canonical team name mapping & lookup
+        self.team_lookup            = {}
+        self.fifa_code_to_name      = {}
+        self.historical_to_official = {
+            normalize_name("United States"): "USA",
+            normalize_name("US"): "USA",
+            normalize_name("DR Congo"): "Congo DR",
+            normalize_name("Democratic Republic of the Congo"): "Congo DR",
+            normalize_name("Cape Verde"): "Cabo Verde",
+            normalize_name("Czech Republic"): "Czechia",
+            normalize_name("Ivory Coast"): "Côte d'Ivoire",
+            normalize_name("Iran"): "IR Iran",
+            normalize_name("Turkey"): "Türkiye",
+        }
+        self._init_worldcup_team_mappings()
 
         self.ml_winner_model        = None
         self.ml_goals_model         = None
         self.wc_teams_list          = []
+
+    def _init_worldcup_team_mappings(self):
+        if hasattr(self, "worldcup_teams_path") and self.worldcup_teams_path.exists():
+            try:
+                with open(self.worldcup_teams_path, encoding="utf-8") as f:
+                    for row in csv.DictReader(f):
+                        name = row["team_name"].strip()
+                        code = row.get("fifa_code", "").strip().upper()
+                        norm = normalize_name(name)
+                        self.team_lookup[norm] = name
+                        if code:
+                            self.fifa_code_to_name[code] = name
+            except Exception:
+                pass
+
+    def get_canonical_team_name(self, name):
+        if not name:
+            return name
+        
+        team_lookup = getattr(self, "team_lookup", None)
+        if team_lookup is None:
+            self.team_lookup = {}
+            team_lookup = self.team_lookup
+            if hasattr(self, "worldcup_teams_path") and self.worldcup_teams_path.exists():
+                try:
+                    with open(self.worldcup_teams_path, encoding="utf-8") as f:
+                        for row in csv.DictReader(f):
+                            t_name = row["team_name"].strip()
+                            self.team_lookup[normalize_name(t_name)] = t_name
+                except Exception:
+                    pass
+                    
+        historical_to_official = getattr(self, "historical_to_official", None)
+        if historical_to_official is None:
+            self.historical_to_official = {
+                normalize_name("United States"): "USA",
+                normalize_name("US"): "USA",
+                normalize_name("DR Congo"): "Congo DR",
+                normalize_name("Democratic Republic of the Congo"): "Congo DR",
+                normalize_name("Cape Verde"): "Cabo Verde",
+                normalize_name("Czech Republic"): "Czechia",
+                normalize_name("Ivory Coast"): "Côte d'Ivoire",
+                normalize_name("Iran"): "IR Iran",
+                normalize_name("Turkey"): "Türkiye",
+            }
+            historical_to_official = self.historical_to_official
+            
+        norm = normalize_name(name)
+        if norm in historical_to_official:
+            official = historical_to_official[norm]
+            return team_lookup.get(normalize_name(official), official)
+        if norm in team_lookup:
+            return team_lookup[norm]
+        return name
+
+    def canonicalize_all_stored_data(self):
+        # 1. Matches
+        for m in self.matches:
+            m["home_team"] = self.get_canonical_team_name(m["home_team"])
+            m["away_team"] = self.get_canonical_team_name(m["away_team"])
+            m["home_norm"] = normalize_name(m["home_team"])
+            m["away_norm"] = normalize_name(m["away_team"])
+
+        # 2. team_stats
+        new_team_stats = defaultdict(TeamStats)
+        for t, stats in self.team_stats.items():
+            canon_t = self.get_canonical_team_name(t)
+            new_team_stats[canon_t] = stats
+        self.team_stats = new_team_stats
+
+        # 3. elo_ratings
+        new_elo = _EloDict()
+        for t, elo in self.elo_ratings.items():
+            canon_t = self.get_canonical_team_name(t)
+            new_elo[canon_t] = elo
+            new_elo[normalize_name(canon_t)] = elo
+        self.elo_ratings = new_elo
+
+        # 4. h2h_matches
+        new_h2h = defaultdict(list)
+        for key, matches_list in self.h2h_matches.items():
+            canon_key = frozenset(self.get_canonical_team_name(t) for t in key)
+            for m in matches_list:
+                m["home_team"] = self.get_canonical_team_name(m["home_team"])
+                m["away_team"] = self.get_canonical_team_name(m["away_team"])
+            new_h2h[canon_key].extend(matches_list)
+        self.h2h_matches = new_h2h
+
+        # 5. player_goals
+        new_player_goals = defaultdict(Counter)
+        for t, counter in self.player_goals.items():
+            canon_t = self.get_canonical_team_name(t)
+            new_player_goals[canon_t].update(counter)
+        self.player_goals = new_player_goals
+
+        # 6. player_xg, player_npxg, player_sot, player_nineties
+        for attr in ["player_xg", "player_npxg", "player_sot", "player_nineties"]:
+            d = getattr(self, attr)
+            new_d = defaultdict(dict)
+            for t, players_dict in d.items():
+                canon_t = self.get_canonical_team_name(t)
+                new_d[canon_t].update(players_dict)
+            setattr(self, attr, new_d)
+
+        # 7. team_goalkeeper, fallback_goalkeepers, current_team_players
+        new_gk = {}
+        for t, gk in self.team_goalkeeper.items():
+            canon_t = self.get_canonical_team_name(t)
+            new_gk[canon_t] = gk
+            new_gk[normalize_name(canon_t)] = gk
+        self.team_goalkeeper = new_gk
+
+        new_fgk = {}
+        for t, gk in self.fallback_goalkeepers.items():
+            canon_t = self.get_canonical_team_name(t)
+            new_fgk[canon_t] = gk
+            new_fgk[normalize_name(canon_t)] = gk
+        self.fallback_goalkeepers = new_fgk
+
+        new_ctp = defaultdict(dict)
+        for t, players_dict in self.current_team_players.items():
+            canon_t = self.get_canonical_team_name(t)
+            new_ctp[canon_t].update(players_dict)
+            new_ctp[normalize_name(canon_t)].update(players_dict)
+        self.current_team_players = new_ctp
+
+        # 8. wc_team_stats, wc_squads, wc_player_info
+        new_wcts = defaultdict(dict)
+        for t, stats_dict in self.wc_team_stats.items():
+            canon_t = self.get_canonical_team_name(t)
+            new_wcts[normalize_name(canon_t)] = stats_dict
+        self.wc_team_stats = new_wcts
+
+        new_wcs = defaultdict(set)
+        for t, squad_set in self.wc_squads.items():
+            canon_t = self.get_canonical_team_name(t)
+            new_wcs[normalize_name(canon_t)].update(squad_set)
+        self.wc_squads = new_wcs
+
+        new_wcpi = defaultdict(dict)
+        for t, players_dict in self.wc_player_info.items():
+            canon_t = self.get_canonical_team_name(t)
+            new_wcpi[normalize_name(canon_t)].update(players_dict)
+        self.wc_player_info = new_wcpi
+
+    def post_load_setup(self):
+        self.team_lookup = getattr(self, "team_lookup", None) or {}
+        self.fifa_code_to_name = getattr(self, "fifa_code_to_name", None) or {}
+        self.historical_to_official = {
+            normalize_name("United States"): "USA",
+            normalize_name("US"): "USA",
+            normalize_name("DR Congo"): "Congo DR",
+            normalize_name("Democratic Republic of the Congo"): "Congo DR",
+            normalize_name("Cape Verde"): "Cabo Verde",
+            normalize_name("Czech Republic"): "Czechia",
+            normalize_name("Ivory Coast"): "Côte d'Ivoire",
+            normalize_name("Iran"): "IR Iran",
+            normalize_name("Turkey"): "Türkiye",
+        }
+        self._init_worldcup_team_mappings()
+        self.canonicalize_all_stored_data()
 
     # ── Data loading ──────────────────────────────────────────────────────────
     def _load_results(self):
@@ -236,8 +410,8 @@ class FootballPredictionModel:
                 try:
                     self.matches.append({
                         "date":       datetime.strptime(row["date"], "%Y-%m-%d"),
-                        "home_team":  row["home_team"],
-                        "away_team":  row["away_team"],
+                        "home_team":  self.get_canonical_team_name(row["home_team"]),
+                        "away_team":  self.get_canonical_team_name(row["away_team"]),
                         "home_score": int(row["home_score"]),
                         "away_score": int(row["away_score"]),
                     })
@@ -256,8 +430,8 @@ class FootballPredictionModel:
             for row in reader:
                 try:
                     name = row.get("player", "").strip()
-                    team = row.get("team", "").strip()
-                    team_country = row.get("team_country", "").strip()
+                    team = self.get_canonical_team_name(row.get("team", "").strip())
+                    team_country = self.get_canonical_team_name(row.get("team_country", "").strip())
                     pos = row.get("position", "").strip()
                     if not name or not team:
                         continue
@@ -354,9 +528,12 @@ class FootballPredictionModel:
                     nation_raw = row.get("Nation", "")
                     parts = nation_raw.strip().split()
                     code = parts[-1].upper() if parts else ""
-                    country = nation_map.get(code)
+                    country = self.fifa_code_to_name.get(code)
+                    if not country:
+                        country = nation_map.get(code)
                     if not country:
                         continue
+                    country = self.get_canonical_team_name(country)
 
                     pos  = row.get("Pos", "")
                     name = row.get("Player", "").strip()
@@ -463,9 +640,9 @@ class FootballPredictionModel:
             reader = csv.DictReader(f)
             for row in reader:
                 try:
-                    ht = row.get("home_team", "").strip()
-                    at = row.get("away_team", "").strip()
-                    w = row.get("winner", "").strip()
+                    ht = self.get_canonical_team_name(row.get("home_team", "").strip())
+                    at = self.get_canonical_team_name(row.get("away_team", "").strip())
+                    w = self.get_canonical_team_name(row.get("winner", "").strip())
                     if not ht or not at or not w:
                         continue
                     hn = normalize_name(ht)
@@ -481,11 +658,15 @@ class FootballPredictionModel:
     def _load_worldcup_squads(self):
         if not self.worldcup_squads_path.exists():
             return
+        self.wc_player_names_by_id = {}
         with open(self.worldcup_squads_path, encoding="utf-8") as f:
             for row in csv.DictReader(f):
                 try:
                     t_id = row["team_id"].strip()
                     p_name = row["player_name"].strip()
+                    p_id = row.get("player_id", "").strip()
+                    if p_id:
+                        self.wc_player_names_by_id[p_id] = p_name
                     pos = row["position"].strip()
                     norm_team = self.wc_team_ids.get(t_id)
                     if not norm_team:
@@ -535,17 +716,46 @@ class FootballPredictionModel:
                     if status != "Completed":
                         continue
                     
-                    ht = row["home_team_name"].strip()
-                    at = row["away_team_name"].strip()
+                    if "home_team_name" in row:
+                        ht = row["home_team_name"].strip()
+                        at = row["away_team_name"].strip()
+                        hn = normalize_name(ht)
+                        an = normalize_name(at)
+                    else:
+                        h_tid = row["home_team_id"].strip()
+                        a_tid = row["away_team_id"].strip()
+                        hn = self.wc_team_ids.get(h_tid)
+                        an = self.wc_team_ids.get(a_tid)
+                        if not hn or not an:
+                            continue
+                        ht = self.wc_teams_info[hn]["team_name"]
+                        at = self.wc_teams_info[an]["team_name"]
+
+                    ht = self.get_canonical_team_name(ht)
+                    at = self.get_canonical_team_name(at)
                     hn = normalize_name(ht)
                     an = normalize_name(at)
+
                     hs = int(row["home_score"])
                     as_ = int(row["away_score"])
                     h_xg = float(row["home_xg"])
                     a_xg = float(row["away_xg"])
-                    h_gk = row["home_goalkeeper"].strip()
-                    a_gk = row["away_goalkeeper"].strip()
-                    potm = row["player_of_the_match_name"].strip()
+
+                    if "home_goalkeeper" in row:
+                        h_gk = row["home_goalkeeper"].strip()
+                    else:
+                        h_gk = self.fallback_goalkeepers.get(hn, "")
+
+                    if "away_goalkeeper" in row:
+                        a_gk = row["away_goalkeeper"].strip()
+                    else:
+                        a_gk = self.fallback_goalkeepers.get(an, "")
+
+                    if "player_of_the_match_name" in row:
+                        potm = row["player_of_the_match_name"].strip()
+                    else:
+                        potm_id = row.get("player_of_the_match_id", "").strip()
+                        potm = getattr(self, "wc_player_names_by_id", {}).get(potm_id, "")
 
                     # Append to training matches
                     try:
@@ -559,7 +769,7 @@ class FootballPredictionModel:
                         "home_score": hs,
                         "away_score": as_,
                         "tournament": "FIFA World Cup",
-                        "stage":      row.get("stage_name", "Group Stage"),
+                        "stage":      "Group Stage",
                     })
                     
                     # Track statistics
@@ -659,8 +869,8 @@ class FootballPredictionModel:
         with open(self.worldcup_round_of_32_path, encoding="utf-8") as f:
             for row in csv.DictReader(f):
                 try:
-                    ht  = row["home_team"].strip()
-                    at  = row["away_team"].strip()
+                    ht  = self.get_canonical_team_name(row["home_team"].strip())
+                    at  = self.get_canonical_team_name(row["away_team"].strip())
                     hs  = int(row["home_score"])
                     as_ = int(row["away_score"])
                     dt  = row["date"].strip()
@@ -690,7 +900,7 @@ class FootballPredictionModel:
 
                     # Collect scorer events for Pass 2
                     scorer = row.get("scorer", "").strip()
-                    scorer_team = row.get("scorer_team", "").strip()
+                    scorer_team = self.get_canonical_team_name(row.get("scorer_team", "").strip())
                     if scorer and scorer_team:
                         scorer_rows.append((scorer, scorer_team))
 
@@ -779,129 +989,6 @@ class FootballPredictionModel:
 
         # Store fixture team-pairs for automatic knockout detection at prediction time
         self.r32_team_pairs = frozenset(
-            (normalize_name(m["home_team"]), normalize_name(m["away_team"]))
-            for m in match_index.values()
-        )
-
-    def _load_worldcup_round_of_16(self):
-        """Load Worldcup_2026_round_of_16.csv — one row per goal event."""
-        if not self.worldcup_round_of_16_path.exists():
-            print(f"[R16] Dataset not found: {self.worldcup_round_of_16_path} — skipping.",
-                  file=sys.stderr)
-            return
-
-        match_index = {}
-        scorer_rows = []
-
-        with open(self.worldcup_round_of_16_path, encoding="utf-8") as f:
-            for row in csv.DictReader(f):
-                try:
-                    ht  = row["home_team"].strip()
-                    at  = row["away_team"].strip()
-                    hs  = int(row["home_score"])
-                    as_ = int(row["away_score"])
-                    dt  = row["date"].strip()
-                    key = (dt, ht, at)
-
-                    if key not in match_index:
-                        try:
-                            match_date = datetime.strptime(dt, "%Y-%m-%d")
-                        except Exception:
-                            match_date = datetime.now()
-
-                        avg = self.total_goals_scored / (2 * max(1, self.total_matches))
-                        if avg == 0: avg = 1.3
-
-                        match_index[key] = {
-                            "date":       match_date,
-                            "home_team":  ht,
-                            "away_team":  at,
-                            "home_score": hs,
-                            "away_score": as_,
-                            "tournament": "FIFA World Cup",
-                            "stage":      "Round of 16",
-                            "est_home_xg": avg,
-                            "est_away_xg": avg,
-                        }
-
-                    scorer = row.get("scorer", "").strip()
-                    scorer_team = row.get("scorer_team", "").strip()
-                    if scorer and scorer_team:
-                        scorer_rows.append((scorer, scorer_team))
-
-                except Exception:
-                    continue
-
-        for match in match_index.values():
-            ht  = match["home_team"]
-            at  = match["away_team"]
-            hn  = normalize_name(ht)
-            an  = normalize_name(at)
-            hs  = match["home_score"]
-            as_ = match["away_score"]
-
-            for team_norm in (hn, an):
-                if team_norm not in self.wc_team_stats:
-                    self.wc_team_stats[team_norm] = {
-                        "matches": 0, "goals_for": 0.0, "goals_against": 0.0,
-                        "clean_sheets": 0, "wins": 0, "draws": 0, "losses": 0,
-                        "xg_for": 0.0, "xg_against": 0.0,
-                    }
-
-            est_xg = match["est_home_xg"]
-            h_stats = self.wc_team_stats[hn]
-            h_stats["matches"]       += 1
-            h_stats["goals_for"]     += hs
-            h_stats["goals_against"] += as_
-            h_stats["xg_for"]        += est_xg
-            h_stats["xg_against"]    += est_xg
-            if as_ == 0: h_stats["clean_sheets"] += 1
-
-            a_stats = self.wc_team_stats[an]
-            a_stats["matches"]       += 1
-            a_stats["goals_for"]     += as_
-            a_stats["goals_against"] += hs
-            a_stats["xg_for"]        += est_xg
-            a_stats["xg_against"]    += est_xg
-            if hs == 0: a_stats["clean_sheets"] += 1
-
-            if hs > as_:
-                h_stats["wins"]   += 1; a_stats["losses"] += 1
-            elif hs < as_:
-                h_stats["losses"] += 1; a_stats["wins"]   += 1
-            else:
-                h_stats["draws"]  += 1; a_stats["draws"]  += 1
-
-            self.matches.append({
-                "date":       match["date"],
-                "home_team":  ht,
-                "away_team":  at,
-                "home_score": hs,
-                "away_score": as_,
-                "tournament": "FIFA World Cup",
-                "stage":      "Round of 16",
-            })
-
-        for scorer, scorer_team in scorer_rows:
-            norm_scorer = normalize_name(scorer)
-            norm_team   = normalize_name(scorer_team)
-
-            canonical_team = scorer_team
-            for (_, ht, at), _ in match_index.items():
-                if normalize_name(ht) == norm_team:
-                    canonical_team = ht; break
-                if normalize_name(at) == norm_team:
-                    canonical_team = at; break
-
-            self.player_goals[canonical_team][norm_scorer] += 1
-            self.wc_players_appeared.add(norm_scorer)
-
-        r16_matches = len(match_index)
-        scorers_added = len(scorer_rows)
-        print(f"[R16] Loaded {r16_matches} Round of 16 matches, "
-              f"{scorers_added} goal events registered.", file=sys.stderr)
-
-        self.r16_team_pairs = frozenset(
             (normalize_name(m["home_team"]), normalize_name(m["away_team"]))
             for m in match_index.values()
         )
@@ -1179,7 +1266,6 @@ class FootballPredictionModel:
         self._load_worldcup_squads()
         self._load_worldcup_matches()
         self._load_worldcup_round_of_32()  # Highest-priority dataset — loaded last, dated latest
-        self._load_worldcup_round_of_16()
         self.matches.sort(key=lambda x: x["date"])
         self._train_team_models()
         self._train_supervised_models()
@@ -1494,8 +1580,8 @@ class FootballPredictionModel:
         results = []
         for player, n_goals in goal_tally.items():
             base = player_data[player]
-            p1  = round(base["prob_1_goal"] * 100)
-            p2  = round(base["prob_2_or_more"] * 100)
+            p1  = round(base["prob_1_goal"])
+            p2  = round(base["prob_2_or_more"])
             preds = [{"goal_count": 1, "probability": p1}]
             if p2 > 0:
                 preds.append({"goal_count": 2, "probability": p2})
@@ -1711,10 +1797,43 @@ class FootballPredictionModel:
                     g_hist = hist.get(norm_name, 0)
                     g_tourney = p_info.get("goals", 0)
 
-                    # Extract club-season stats
-                    club_npxg = self.player_npxg[team].get(norm_name, 0.0)
-                    club_sot = self.player_sot[team].get(norm_name, 0.0)
-                    club_nineties = self.player_nineties[team].get(norm_name, 0.0)
+                    # Extract club-season stats with robust name matching fallback
+                    club_npxg = 0.0
+                    club_sot = 0.0
+                    club_nineties = 0.0
+                    
+                    matched_club_name = None
+                    if norm_name in self.player_npxg[team]:
+                        matched_club_name = norm_name
+                    else:
+                        words_wc = set(norm_name.split())
+                        best_match = None
+                        best_intersection = 0
+                        for club_name in self.player_npxg[team].keys():
+                            words_club = set(club_name.split())
+                            intersection = words_wc.intersection(words_club)
+                            if len(intersection) >= 2 and len(intersection) > best_intersection:
+                                best_match = club_name
+                                best_intersection = len(intersection)
+                        if best_match:
+                            matched_club_name = best_match
+                        else:
+                            for club_name in self.player_npxg[team].keys():
+                                if club_name in norm_name or norm_name in club_name:
+                                    matched_club_name = club_name
+                                    break
+                            if not matched_club_name:
+                                wc_parts = norm_name.split()
+                                for club_name in self.player_npxg[team].keys():
+                                    club_parts = club_name.split()
+                                    if len(wc_parts) >= 2 and len(club_parts) >= 2:
+                                        if wc_parts[-1] == club_parts[-1] and wc_parts[0][0] == club_parts[0][0]:
+                                            matched_club_name = club_name
+                                            break
+                    if matched_club_name:
+                        club_npxg = self.player_npxg[team].get(matched_club_name, 0.0)
+                        club_sot = self.player_sot[team].get(matched_club_name, 0.0)
+                        club_nineties = self.player_nineties[team].get(matched_club_name, 0.0)
 
                     # Calculate club prior rate
                     if club_nineties > 0:
@@ -1810,6 +1929,9 @@ class FootballPredictionModel:
 
     # ── Public API ────────────────────────────────────────────────────────────
     def available_teams(self):
+        team_lookup = getattr(self, "team_lookup", {})
+        if team_lookup:
+            return sorted(list(team_lookup.values()))
         if getattr(self, "wc_teams_list", None):
             return self.wc_teams_list
         teams = set()
@@ -1841,6 +1963,10 @@ class FootballPredictionModel:
             away_team = home_team.get("away_team", "")
             home_team = home_team.get("home_team", "")
 
+        # Resolve to canonical names first
+        home_team = self.get_canonical_team_name(home_team)
+        away_team = self.get_canonical_team_name(away_team)
+
         # Auto-infer stage from fixture data if not explicitly supplied
         if stage is None:
             stage = self._infer_stage(home_team, away_team)
@@ -1868,11 +1994,12 @@ class FootballPredictionModel:
                         gks.sort(reverse=True)
                         self.team_goalkeeper[team] = gks[0][1]
 
-        known = self.team_stats
         errors = []
+        team_lookup = getattr(self, "team_lookup", {})
         for label, team in [("home_team", home_team), ("away_team", away_team)]:
-            if team not in known:
-                close = [t for t in known if team.lower() in t.lower()][:5]
+            norm = normalize_name(team)
+            if norm not in team_lookup:
+                close = [t for t in team_lookup.values() if team.lower() in t.lower()][:5]
                 errors.append({"field": label, "value": team,
                                "message": f"Team '{team}' not found.",
                                "suggestions": close or self.available_teams()[:10]})
@@ -2168,19 +2295,31 @@ class PredictionService:
         return sorted(self.model.available_teams())
 
     def generate_prediction(self, home_team, away_team, stage=None):
-        known = self.model.team_stats
+        # Resolve inputs to canonical names first
+        home_team_canon = self.model.get_canonical_team_name(home_team)
+        away_team_canon = self.model.get_canonical_team_name(away_team)
+
         errors = []
-        for label, team in [("home_team", home_team), ("away_team", away_team)]:
-            if team not in known:
-                close = [t for t in known if team.lower() in t.lower()][:5]
+        team_lookup = getattr(self.model, "team_lookup", {})
+        for label, original_input, resolved_name in [
+            ("home_team", home_team, home_team_canon),
+            ("away_team", away_team, away_team_canon)
+        ]:
+            norm = normalize_name(resolved_name)
+            if norm not in team_lookup:
+                close = [t for t in team_lookup.values() if original_input.lower() in t.lower()][:5]
                 errors.append({
                     "field": label,
-                    "value": team,
-                    "message": f"Team '{team}' not found.",
+                    "value": original_input,
+                    "message": f"Team '{original_input}' not found.",
                     "suggestions": close or self.get_available_teams()[:10]
                 })
         if errors:
             return {"status": "error", "validation_errors": errors}
+
+        # If validation succeeds, use the canonicalized official names internally
+        home_team = home_team_canon
+        away_team = away_team_canon
 
         if home_team == away_team:
             return {
@@ -2425,7 +2564,6 @@ def main():
     parser.add_argument("--wc-squads",       type=str, default=None, help="Path to Worldcup_2026_squads_and_players.csv")
     parser.add_argument("--wc-matches",      type=str, default=None, help="Path to Worldcup_2026_matches_until_now.csv")
     parser.add_argument("--wc-round-of-32",  type=str, default=None, help="Path to Worldcup_2026_round_of_32.csv")
-    parser.add_argument("--wc-round-of-16",  type=str, default=None, help="Path to Worldcup_2026_round_of_16.csv")
     parser.add_argument("--save-model", type=str, default=None, metavar="FILE",
                         help="Train and save model to FILE (.pkl)")
     parser.add_argument("--load-model", type=str, default=None, metavar="FILE",
@@ -2450,6 +2588,7 @@ def main():
             sys.exit(1)
         with open(pkl_path, "rb") as f:
             model = pickle.load(f)
+        model.post_load_setup()
         print(f"Model loaded from {pkl_path}.", file=sys.stderr)
         # Refresh manager data from CSV only if requested or if no serialized records exist
         if args.manager_data or not getattr(model, "manager_impact", None) or not getattr(model.manager_impact, "records", None):
@@ -2460,6 +2599,7 @@ def main():
         # Auto-load the latest available model (GoalGPT_latest.pkl or highest version)
         with open(auto_pkl, "rb") as f:
             model = pickle.load(f)
+        model.post_load_setup()
         print(f"Auto-loaded {auto_pkl.name}.", file=sys.stderr)
         # Refresh manager data from CSV only if requested or if no serialized records exist
         if args.manager_data or not getattr(model, "manager_impact", None) or not getattr(model.manager_impact, "records", None):
@@ -2478,7 +2618,6 @@ def main():
             worldcup_squads_path=args.wc_squads,
             worldcup_matches_path=args.wc_matches,
             worldcup_round_of_32_path=args.wc_round_of_32,
-            worldcup_round_of_16_path=args.wc_round_of_16,
         )
         # Training must complete before any file is written
         try:

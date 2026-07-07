@@ -262,6 +262,35 @@ def test_engine():
     assert not missing_keys, f"Missing output schema keys: {missing_keys}"
     print("  => PASSED: Output schema remains 100% compatible with previous versions")
 
+    # -------------------------------------------------------------------------
+    # TEST 11: Team Selection & Name Validation
+    # -------------------------------------------------------------------------
+    print("TEST 11: Team Selection & Name Validation:")
+    service = PredictionService(model)
+    # Test canonical resolution in prediction service
+    for input_name, expected_canon in [
+        ("United States", "USA"),
+        ("usa", "USA"),
+        ("DR Congo", "Congo DR"),
+        ("Democratic Republic of the Congo", "Congo DR"),
+        ("Cape Verde", "Cabo Verde"),
+    ]:
+        resolved = model.get_canonical_team_name(input_name)
+        assert resolved == expected_canon, f"Failed to map '{input_name}' to '{expected_canon}', got '{resolved}'"
+        print(f"  Mapped variant '{input_name}' => '{resolved}' successfully")
+
+    # Test prediction with variant names
+    pred = service.generate_prediction("United States", "DR Congo")
+    assert pred.get("status") != "error", f"Prediction failed for United States vs DR Congo: {pred}"
+    print("  => PASSED: Prediction successfully run using variant team names")
+
+    # Test rejection of invalid teams
+    pred_invalid = service.generate_prediction("Atlantis", "Germany")
+    assert pred_invalid.get("status") == "error", "Expected error for invalid team, but got success"
+    errors = pred_invalid.get("validation_errors", [])
+    assert any("Atlantis" in e.get("value", "") for e in errors), f"Expected validation error for Atlantis: {errors}"
+    print("  => PASSED: Successfully rejected invalid team with appropriate validation errors")
+
     print("\n====================================================")
     print("   ALL ENGINE VALIDATION TESTS COMPLETED SUCCESSFULLY!  ")
     print("====================================================")
