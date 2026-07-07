@@ -1,0 +1,24 @@
+# GoalGPT — Football Prediction Engine & Colab Ecosystem Dependencies
+
+# Core Numerical & Data Handling
+numpy>=1.24.0
+pandas>=2.0.0
+scipy>=1.10.0
+
+# Machine Learning & Gradient Boosting Models (for match winner, expected goals & scoreline tasks)
+scikit-learn>=1.3.0
+xgboost>=2.0.0
+catboost>=1.2.0
+joblib>=1.3.0
+
+# Advanced Model Serialization
+cloudpickle>=3.0.0
+
+# Data Visualization & Plotting (for Notebook & Colab analysis)
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Web Application & UI Server (for --web hosting mode)
+flask>=3.0.0
+werkzeug>=3.0.0
+jinja2>=3.1.0

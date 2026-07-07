@@ -1,8 +1,15 @@
 {
+<<<<<<< Updated upstream
   "timestamp": "2026-07-06T09:02:25.601620+00:00",
   "version": null,
   "training_matches": 49555,
   "teams_tracked": 343,
+=======
+  "timestamp": "2026-07-07T10:01:37.251857+00:00",
+  "version": null,
+  "training_matches": 49561,
+  "teams_tracked": 336,
+>>>>>>> Stashed changes
   "elo_k_factor": 32,
   "xg_blend": {
     "attack": 0.56,
@@ -18,6 +25,11 @@
     "poisson": 0.32
   },
   "ml_enabled": true,
+<<<<<<< Updated upstream
   "training_seconds": 30.58,
   "model_file": "goalgpt_v5.pkl"
+=======
+  "training_seconds": 28.55,
+  "model_file": "GoalGPT_latest.pkl"
+>>>>>>> Stashed changes
 }

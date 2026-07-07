@@ -5,6 +5,13 @@ import random
 import numpy as np
 import pickle
 
+# Fix for scikit-learn unpickling compatibility across versions
+try:
+    import sklearn._loss._loss
+    sys.modules['_loss'] = sys.modules.get('_loss', sys.modules['sklearn._loss._loss'])
+except ImportError:
+    pass
+
 # Set up path
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 

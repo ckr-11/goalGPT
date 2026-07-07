@@ -14,6 +14,13 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Fix for scikit-learn unpickling compatibility across versions
+try:
+    import sklearn._loss._loss
+    sys.modules['_loss'] = sys.modules.get('_loss', sys.modules['sklearn._loss._loss'])
+except ImportError:
+    pass
+
 
 def normalize_name(name: str) -> str:
     """Normalize names to be lowercase and accent-insensitive."""
@@ -220,7 +227,27 @@ class FootballPredictionModel:
         self.gk_potm_counts         = Counter()
         self.wc_players_appeared    = set()
         self.r32_team_pairs         = frozenset()  # populated by _load_worldcup_round_of_32
+<<<<<<< Updated upstream
         self.r16_team_pairs         = frozenset()
+=======
+        self.r16_team_pairs         = frozenset()  # populated by _load_worldcup_round_of_16
+
+        # Canonical team name mapping & lookup
+        self.team_lookup            = {}
+        self.fifa_code_to_name      = {}
+        self.historical_to_official = {
+            normalize_name("United States"): "USA",
+            normalize_name("US"): "USA",
+            normalize_name("DR Congo"): "Congo DR",
+            normalize_name("Democratic Republic of the Congo"): "Congo DR",
+            normalize_name("Cape Verde"): "Cabo Verde",
+            normalize_name("Czech Republic"): "Czechia",
+            normalize_name("Ivory Coast"): "Côte d'Ivoire",
+            normalize_name("Iran"): "IR Iran",
+            normalize_name("Turkey"): "Türkiye",
+        }
+        self._init_worldcup_team_mappings()
+>>>>>>> Stashed changes
 
         self.ml_winner_model        = None
         self.ml_goals_model         = None
@@ -784,6 +811,7 @@ class FootballPredictionModel:
         )
 
     def _load_worldcup_round_of_16(self):
+<<<<<<< Updated upstream
         """Load Worldcup_2026_round_of_16.csv — one row per goal event."""
         if not self.worldcup_round_of_16_path.exists():
             print(f"[R16] Dataset not found: {self.worldcup_round_of_16_path} — skipping.",
@@ -792,12 +820,29 @@ class FootballPredictionModel:
 
         match_index = {}
         scorer_rows = []
+=======
+        """Load Worldcup_2026_round_of_16.csv — one row per goal event.
+        """
+        if not getattr(self, "worldcup_round_of_16_path", None) or not self.worldcup_round_of_16_path.exists():
+            print(f"[R16] Dataset not found: {getattr(self, 'worldcup_round_of_16_path', 'N/A')} — skipping.",
+                  file=sys.stderr)
+            return
+
+        # ── Pass 1: Aggregate unique matches ─────────────────────────────────
+        match_index = {}   # (date_str, ht, at) → match dict
+        scorer_rows = []   # deferred scorer processing
+>>>>>>> Stashed changes
 
         with open(self.worldcup_round_of_16_path, encoding="utf-8") as f:
             for row in csv.DictReader(f):
                 try:
+<<<<<<< Updated upstream
                     ht  = row["home_team"].strip()
                     at  = row["away_team"].strip()
+=======
+                    ht  = self.get_canonical_team_name(row["home_team"].strip())
+                    at  = self.get_canonical_team_name(row["away_team"].strip())
+>>>>>>> Stashed changes
                     hs  = int(row["home_score"])
                     as_ = int(row["away_score"])
                     dt  = row["date"].strip()
@@ -825,13 +870,21 @@ class FootballPredictionModel:
                         }
 
                     scorer = row.get("scorer", "").strip()
+<<<<<<< Updated upstream
                     scorer_team = row.get("scorer_team", "").strip()
+=======
+                    scorer_team = self.get_canonical_team_name(row.get("scorer_team", "").strip())
+>>>>>>> Stashed changes
                     if scorer and scorer_team:
                         scorer_rows.append((scorer, scorer_team))
 
                 except Exception:
                     continue
 
+<<<<<<< Updated upstream
+=======
+        # ── Pass 2: Update wc_team_stats and self.matches ────────────────────
+>>>>>>> Stashed changes
         for match in match_index.values():
             ht  = match["home_team"]
             at  = match["away_team"]
@@ -849,6 +902,10 @@ class FootballPredictionModel:
                     }
 
             est_xg = match["est_home_xg"]
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
             h_stats = self.wc_team_stats[hn]
             h_stats["matches"]       += 1
             h_stats["goals_for"]     += hs
@@ -882,6 +939,10 @@ class FootballPredictionModel:
                 "stage":      "Round of 16",
             })
 
+<<<<<<< Updated upstream
+=======
+        # ── Pass 3: Register scorers ──────────────────────────────────────────
+>>>>>>> Stashed changes
         for scorer, scorer_team in scorer_rows:
             norm_scorer = normalize_name(scorer)
             norm_team   = normalize_name(scorer_team)
@@ -1179,7 +1240,11 @@ class FootballPredictionModel:
         self._load_worldcup_squads()
         self._load_worldcup_matches()
         self._load_worldcup_round_of_32()  # Highest-priority dataset — loaded last, dated latest
+<<<<<<< Updated upstream
         self._load_worldcup_round_of_16()
+=======
+        self._load_worldcup_round_of_16()  # Latest knockout stage
+>>>>>>> Stashed changes
         self.matches.sort(key=lambda x: x["date"])
         self._train_team_models()
         self._train_supervised_models()
@@ -1831,6 +1896,9 @@ class FootballPredictionModel:
         """
         hn = normalize_name(home_team)
         an = normalize_name(away_team)
+        pairs_r16 = getattr(self, "r16_team_pairs", frozenset())
+        if (hn, an) in pairs_r16 or (an, hn) in pairs_r16:
+            return "Round of 16"
         pairs = getattr(self, "r32_team_pairs", frozenset())
         if (hn, an) in pairs or (an, hn) in pairs:
             return "Round of 32"
