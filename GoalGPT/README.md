@@ -32,7 +32,6 @@ Welcome to the official, presentation-ready technical documentation for the **Go
 25. [Current Limitations](#25-current-limitations)
 26. [Future Roadmap](#26-future-roadmap)
 27. [Complete End-to-End Walkthrough: Argentina vs Germany](#27-complete-end-to-end-walkthrough-argentina-vs-germany)
-28. [Presentation Notes & Slide Outline](#28-presentation-notes--slide-outline)
 
 ---
 
@@ -188,6 +187,72 @@ GoalGPT processes 16 CSV datasets, loaded in hierarchical priority order:
    - *Purpose*: Full international match historical record.
    - *Columns*: date, home_team, away_team, home_score, away_score, tournament
    - *Priority*: 16 (Lowest)
+
+### Detailed Dataset Sources & Collection Methods
+
+#### 1. Historical Match Data (Kaggle)
+* **Source**: International football results from 1872 to 2017 (updated) — by `martj42`
+* **Link**: [https://www.kaggle.com/datasets/martj42/international-football-results-from-1872-to-2017](https://www.kaggle.com/datasets/martj42/international-football-results-from-1872-to-2017)
+* **Mirror**: [https://github.com/martj42/international_results](https://github.com/martj42/international_results)
+* **License**: Public domain / open (per Kaggle listing)
+
+An automatically-updated dataset of 49,000+ international football results, spanning every official match since the first in 1872 through FIFA World Cups, continental championships, and friendlies.
+
+| File | Description |
+| :--- | :--- |
+| `results.csv` | Full match record: date, home/away team, score, tournament, city, country, neutral-venue flag. |
+| `shootouts.csv` | Penalty shootout outcomes: date, home/away team, shootout winner, first shooter. |
+| `goalscorers.csv` | Individual goal log: date, teams, scoring team, scorer name, own-goal flag, penalty flag. |
+| `former_names.csv` | Historical team name mapping (e.g. old country names → current team names), with the date ranges each name was in use — used for name canonicalization. |
+
+#### 2. FIFA World Ranking / Elo Data (Kaggle)
+* **Sources**:
+  * 2026 FIFA World Cup Historical Elo Ratings — [https://www.kaggle.com/datasets/afonsofernandescruz/2026-fifa-world-cup-historical-elo-ratings](https://www.kaggle.com/datasets/afonsofernandescruz/2026-fifa-world-cup-historical-elo-ratings)
+  * International Football Elo Ratings — [https://www.kaggle.com/datasets/saifalnimri/international-football-elo-ratings](https://www.kaggle.com/datasets/saifalnimri/international-football-elo-ratings)
+
+| File | Description |
+| :--- | :--- |
+| `fifa_ranking-2023-07-20.csv` | FIFA/Elo ranking snapshot dated July 20, 2023 — team rank, rating points, confederation. |
+| `fifa_ranking-2024-04-04.csv` | Ranking snapshot dated April 4, 2024. |
+| `fifa_ranking-2024-06-20.csv` | Ranking snapshot dated June 20, 2024. |
+
+#### 3. Player & Club Data (Kaggle / Transfermarkt)
+* **Source**: Football Data from Transfermarkt — by `davidcariboo`
+* **Link**: [https://www.kaggle.com/datasets/davidcariboo/player-scores](https://www.kaggle.com/datasets/davidcariboo/player-scores)
+* **Underlying pipeline (GitHub)**: [https://github.com/dcaribou/transfermarkt-datasets](https://github.com/dcaribou/transfermarkt-datasets)
+* **License**: CC0 1.0
+
+This is a clean, structured, weekly-updated extraction of Transfermarkt data — 30,000+ players, 60,000+ games, and 400,000+ player market valuations — built by an open-source scraping/dbt pipeline that pulls from Transfermarkt.com and republishes on Kaggle and GitHub.
+
+| File | Description |
+| :--- | :--- |
+| `players.csv` | Player profiles: name, position, club, nationality, market value. |
+| `players_data-2024_2025.csv` | Full player stats for the 2024–25 club season: minutes, goals, assists. |
+| `players_data_light-2024_2025.csv` | Lightweight/trimmed version of the above (reduced columns, likely for faster loading in the pipeline). |
+
+#### 4. World Cup 2026 Match Probability Baseline (Kaggle)
+* **Source**: WC2026 Match Probability Baseline Dataset — by `sarazahran1`
+* **Link**: [https://www.kaggle.com/datasets/sarazahran1/wc2026-match-probability-baseline-dataset](https://www.kaggle.com/datasets/sarazahran1/wc2026-match-probability-baseline-dataset)
+
+Used as a supplementary baseline reference for pre-tournament win-probability calibration.
+
+#### 5. Live 2026 World Cup Data (Self-Collected — FIFA.com)
+* **Source**: Official FIFA World Cup 2026 match center — [https://www.fifa.com](https://www.fifa.com)
+* **Collection method**: Custom web scraper (not a pre-existing public dataset — no such dataset existed for a tournament in progress)
+
+| File | Description |
+| :--- | :--- |
+| `Worldcup_2026_matches_until_now.csv` | Live group-stage match results scraped as the tournament progressed. |
+| `Worldcup_2026_round_of_32.csv` | Round of 32 knockout results. |
+| `Worldcup_2026_squads_and_players.csv` | Official national squad rosters, positions, and tournament awards (e.g. Player of the Match). |
+| `Worldcup_2026_teams.csv` | Participating teams / groups / qualification metadata. |
+
+**How it was collected:**
+* **Target pages** — match center and squad-list pages on fifa.com for each fixture and national team.
+* **Extraction** — HTML parsing of match result pages (score, scorers, own goals/penalties) and squad pages (player name, position, awards).
+* **Update cadence** — re-scraped after each completed round (Group Stage → Round of 32 → Round of 16), so files reflect the tournament's live progression rather than a single snapshot.
+* **Schema alignment** — extracted fields were normalized to match the column structure of the historical `results.csv` / `goalscorers.csv` (same `date`, `home_team`, `away_team`, `home_score`, `away_score`, `scorer`, `scorer_team` fields) so the ingestion pipeline treats historical and live data uniformly.
+* **Verification** — scraped entries were spot-checked against match reports before being committed, since award/roster formatting can vary across FIFA's pages.
 
 ---
 
@@ -585,22 +650,3 @@ Using the optimized blending weights ($68\%$ ML / $32\%$ Poisson):
   }
 }
 ```
-
----
-
-## 28. Presentation Notes & Slide Outline
-
-### Suggested 10-Minute Slide Structure
-1.  **Slide 1: Vision & Introduction**: GoalGPT is a hybrid prediction engine combining Machine Learning with Bivariate Poisson statistical simulation.
-2.  **Slide 2: Data Architecture**: Ingestion pipeline prioritizing live tournament matches and knockout results, backed by team name canonicalization.
-3.  **Slide 3: Math Under the Hood**: Explaining Expected Goals (xG), Elo rating systems, and goalkeeper/manager multipliers.
-4.  **Slide 4: Blending & Calibration**: Fusing ML and Poisson models to predict outcomes, draws, and scorelines.
-5.  **Slide 5: Performance & Validation**: Displaying the accuracy improvements seen in Version 6.0 ($74.8\%$ accuracy).
-
-### Questions Judges May Ask & Answers
-*   **Q: Why use a hybrid model instead of an end-to-end Neural Network?**
-    *   *A*: Neural Networks require massive datasets to train and are prone to overfitting. A hybrid model ensures that predictions respect physical football rules (discrete integer goals) while capturing complex features like manager win rates.
-*   **Q: How does the model resolve inconsistent team names?**
-    *   *A*: It uses a canonical mapping system that standardizes name variations (e.g., mapping "United States" or "US" to "USA").
-*   **Q: How does the model handle knockout matches that end in a draw?**
-    *   *A*: It automatically detects if a fixture is in a knockout stage, and calculates penalty shootout probabilities using historical shootout records with a Laplace fallback.
