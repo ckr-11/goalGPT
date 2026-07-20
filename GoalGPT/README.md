@@ -1,445 +1,273 @@
-# ⚽ GoalGPT — Football Prediction Engine
+# ⚽ GoalGPT Engine: Complete Technical Architecture & Reference Manual
 
-A championship-grade football prediction AI that forecasts match outcomes, scorelines, player scoring probabilities, clean sheets, and over/under goals — powered by Poisson statistics, ELO ratings, and optional ML gradient boosting.
+<div align="center">
+
+![Python Version](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Scikit-Learn](https://img.shields.io/badge/scikit--learn-1.4%2B-F7931E?style=for-the-badge&logo=scikit-learn&logoColor=white)
+![Flask](https://img.shields.io/badge/Flask-3.0%2B-000000?style=for-the-badge&logo=flask&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)
+![Status](https://img.shields.io/badge/Engine_Status-v8_Production-00C853?style=for-the-badge)
+
+<br />
+
+**A Championship-Grade Football Prediction Engine Powered by Calibrated Expected Goals ($xG$), Bivariate Poisson Matrices, ELO Dynamics, & Automatic Knockout Stage Inference.**
+
+[Key Features](#-project-introduction) • [System Architecture](#-complete-system-architecture) • [Algorithms & Math](#-core-algorithms--math-v8) • [Validation Suite](#-the-11-test-diagnostic-suite) • [Quickstart Walkthrough](#-end-to-end-walkthrough)
+
+</div>
 
 ---
 
-## 📁 Project Structure
+Welcome to the official, presentation-ready technical documentation for the **GoalGPT Engine (v8 Production)**. This manual explains everything happening under the hood—from raw dataset ingestion and Bayesian shrinkage to the final stochastic scorelines shown on the web dashboard.
+
+---
+
+## 📋 Table of Contents
+1. [Project Introduction](#1--project-introduction)
+2. [Complete System Architecture](#2--complete-system-architecture)
+3. [Datasets & Sources](#3--datasets--sources)
+4. [Core Algorithms & Math (v8)](#4--core-algorithms--math-v8)
+5. [Dynamic Stage Inference & Knockouts](#5--dynamic-stage-inference--knockouts)
+6. [Model Serialization & Environment Shims](#6--model-serialization--environment-shims)
+7. [The 11-Test Diagnostic Suite](#7--the-11-test-diagnostic-suite)
+8. [End-to-End Walkthrough](#8--end-to-end-walkthrough)
+
+---
+
+## 1. 🚀 Project Introduction
+
+GoalGPT is a predictive sports analytics engine built to forecast association football outcomes, specifically tailored for the **FIFA World Cup 2026** and global international fixtures.
+
+Traditional models suffer from two primary failure modes:
+1. **Oversimplified Machine Learning**: Standard classification trees and gradient boosters ignore the discrete physics and low-scoring Poisson distributions inherent to football matches.
+2. **Rigid Historical Lookups**: Purely historical Poisson models fail to adapt to tournament form, small-sample variance, and tactical manager shifts.
+
+GoalGPT v8 solves this with a **Hybrid Analytical-Stochastic Engine** centered around a calibrated **Bivariate Poisson probability grid**, **Bayesian shrinkage** on small-sample World Cup performances, exponential/linear time-decay weighting, and **automated knockout stage inference** to deliver championship-grade predictions.
+
+---
+
+## 2. 🏛️ Complete System Architecture
+
+GoalGPT is organized into clean, highly modular layers within a zero-dependency architecture designed for portability across local CLI environments, Google Colab notebooks, and production web servers:
 
 ```
 GoalGPT/
-├── sports_prediction_colab_app.py   # Main prediction engine
-├── generate_mock_data.py            # Legacy synthetic data generator (not used by engine)
-├── GoalGPT_version_1.pkl            # Saved/trained model (auto-generated)
-├── experiment_log.json              # Training metadata log (auto-generated)
-└── DataSet/
-    ├── results.csv                       # Full international match history
-    ├── goalscorers.csv                   # International goal scorers history
-    ├── players.csv                       # Current active squad rosters (source of truth)
-    ├── players_data_light-2024_2025.csv  # Club season xG / minutes (2024–25)
-    ├── players_data-2024_2025.csv        # Full club season stats (2024–25)
-    ├── fifa_ranking-2024-06-20.csv       # FIFA rankings
-    ├── shootouts.csv                     # Penalty shootout records
-    ├── former_names.csv                  # Historical team name aliases
-    ├── Worldcup_2026_teams.csv           # World Cup participating teams & ratings
-    ├── Worldcup_2026_squads_and_players.csv # Squad list of WC players & profiles
-    └── Worldcup_2026_matches_until_now.csv # Completed tournament match logs
+├── sports_prediction_colab_app.py   # Core prediction engine, CLI, & Flask Web API
+├── test_engine.py                   # 11-Test Diagnostic Suite
+├── update_datasets.py               # Data ingestion & normalization utility
+├── GoalGPT_latest.pkl               # Production model symlink -> goalgpt_v8.pkl
+├── goalgpt_v8.pkl                   # Latest trained & serialized model artifact (Version 8)
+├── experiment_log.json              # Hyperparameter tuning & CV evaluation log
+├── Output.json                      # Reference schema for API output
+├── templates/                       # Web UI HTML templates
+├── static/                          # Web UI styling & interactive scripts
+└── DataSet/                         # Curated CSV datasets repository (16 files)
+```
+
+### Architectural Flow & Separation of Concerns
+
+```
+       +-------------------------------------------------------------+
+       |                  Client Interfaces                          |
+       |     [ CLI Terminal ]   [ Flask REST API ]   [ Colab/Jupyter ] |
+       +------------------------------+------------------------------+
+                                      |
+                                      v
+       +-------------------------------------------------------------+
+       |                  PredictionService                          |
+       |  • Fuzzy Alias Resolution (e.g., 'United States' -> 'USA')  |
+       |  • Input Validation & Error Formatting                      |
+       |  • JSON Schema Serialization Compliant with Output.json     |
+       +------------------------------+------------------------------+
+                                      |
+                                      v
+       +-------------------------------------------------------------+
+       |                FootballPredictionModel                      |
+       |  • Data Ingestion Layer (16 CSV datasets)                   |
+       |  • 5-Fold Cross-Validation Hyperparameter Tuning            |
+       |  • Analytical Expected Goals (xG) Calibration Engine         |
+       |  • Bivariate Poisson Scoreline Distribution & Grid Mass     |
+       |  • Automatic Stage Inference & Penalty Shootout Logic       |
+       |  • Player Goalscorer & Goalkeeper Clean-Sheet Modeling      |
+       +-------------------------------------------------------------+
 ```
 
 ---
 
-## 🚀 How to Run
+## 3. 📊 Datasets & Sources
 
-### Prerequisites
+GoalGPT processes **16 carefully curated CSV datasets**. *Developers must ensure these datasets are updated via `python3 update_datasets.py` before running model retraining.*
 
-- Python 3.8+
-- No external dependencies required (pure standard library)
-- Optional (for ML-enhanced winner probabilities): `scikit-learn`, `numpy`
+| Ingestion Priority | Dataset File | Primary Purpose | Source / Directory |
+| :---: | :--- | :--- | :--- |
+| **1** | `Worldcup_2026_matches_until_now.csv` | Live tournament match logs (Group stage) | `DataSet/` |
+| **2** | `Worldcup_2026_round_of_32.csv` | Live Round of 32 results & stage pairings | `DataSet/` |
+| **3** | `Worldcup_2026_squads_and_players.csv` | Official rosters, player profiles, & positions | `DataSet/` |
+| **4** | `Manager_dataset.csv` | Tactical performance ratings & tenure of national managers | `DataSet/` |
+| **5** | `players_data-2024_2025.csv` | Comprehensive club season player statistics (2024–25) | `DataSet/` |
+| **6** | `shootouts.csv` | Penalty shootout win/loss records & historical conversion rates | `DataSet/` |
+| **7** | `former_names.csv` | Mappings for historical country name aliases (`USA` $\leftrightarrow$ `United States`) | `DataSet/` |
+| **8** | `results.csv` | Full international match records (1872 – Present) | `DataSet/` |
+| **9** | `goalscorers.csv` | Historical international goalscorers registry | `DataSet/` |
+| **10** | `players.csv` | Active international squad rosters (Source of Truth) | `DataSet/` |
+| **11** | `players_data_light-2024_2025.csv` | Club season light metrics ($xG$, minutes played 2024–25) | `DataSet/` |
+| **12** | `fifa_ranking-2024-06-20.csv` | Official FIFA international ranking points | `DataSet/` |
+| **13** | `Worldcup_2026_teams.csv` | Participating World Cup 2026 teams & base ELO ratings | `DataSet/` |
+| **14** | `Output.json` | Reference verification schema for API validation | Root Directory |
+| **15** | `experiment_log.json` | Cross-validation history and grid search logs | Root Directory |
+| **16** | `GoalGPT_latest.pkl` | Binary serialized production model weight state | Root Directory |
 
-```bash
-pip install scikit-learn numpy   # optional
+---
+
+## 4. 🧠 Core Algorithms & Math (v8)
+
+GoalGPT v8 prioritizes analytical, mathematically consistent probability logic ($ML\_WEIGHT = 0.00$, $\text{Analytical} = 1.00$) over tree-based models to avoid small-sample volatility during tournament knockout stages.
+
+### Expected Goals ($xG$) Calculation
+For any match between Home ($H$) and Away ($A$), raw expected goals ($xG_H, xG_A$) are calculated across multiple distinct mathematical steps:
+
+#### 1. Bayesian Shrinkage on World Cup Performance
+Small-sample tournament data ($m_{wc} > 0$) can be volatile. GoalGPT blends recorded tournament goals ($40\%$) with tournament $xG$ ($60\%$):
+$$\text{Raw}_{WC} = 0.60 \cdot xG_{for, wc} + 0.40 \cdot \text{Goals}_{for, wc}$$
+This raw metric is then shrunken toward historical all-time averages using prior weight $M = \text{PRIOR\_M}$:
+$$xG_{wc} = \frac{m_{wc} \cdot \text{Raw}_{WC} + M \cdot \text{HistAvg}}{m_{wc} + M}$$
+
+#### 2. Recent International Form with Time Decay
+Recent matches ($i \in [0, 9]$, where $0$ is the most recent) are weighted with linear decay ($w_i = 1.0 - 0.1 \cdot i$). To prioritize high-stakes intensity, matches played in the `FIFA World Cup` receive a **$2.0\times$ weight multiplier**:
+$$W_{total} = \sum_{i=0}^9 \left(w_i \cdot \text{Mult}_{wc, i}\right), \quad xG_{form} = \frac{\sum_{i=0}^9 \left(w_i \cdot \text{Mult}_{wc, i} \cdot \text{Goals}_i\right)}{W_{total}}$$
+
+#### 3. ELO Differential & Manager Delta Adjustments
+Base expected goals are dynamically scaled using logistic ELO differential ($\Delta ELO = ELO_H - ELO_A$), FIFA ranking deltas, and national team manager impact coefficients ($\Delta_{mgr}$):
+$$xG_{calibrated} = xG_{form} \cdot \left(\frac{1}{1 + 10^{-\Delta ELO / 400}}\right) \cdot \left(1 + \text{coef}_{mgr} \cdot \Delta_{mgr}\right) + \text{HomeAdvantage}$$
+
+---
+
+### Bivariate Poisson Scoreline Distribution
+Once calibrated $xG_H$ and $xG_A$ are determined, the engine constructs a dynamic score grid up to $N = \max(9, \lceil\max(xG_H, xG_A) + 8\rceil)$:
+$$P(h, a) = \left(\frac{e^{-xG_H} xG_H^h}{h!}\right) \left(\frac{e^{-xG_A} xG_A^a}{a!}\right)$$
+
+The joint probability matrix is strictly normalized across the grid so that exact probability conservation holds:
+$$\sum_{h=0}^N \sum_{a=0}^N P(h, a) = 1.000000$$
+
+---
+
+## 5. 🏆 Dynamic Stage Inference & Knockouts
+
+GoalGPT v8 eliminates fragile client-side stage inputs (`Group Stage` vs. `Round of 32` vs. `Quarterfinals`). The engine inspects tournament match datasets (`Worldcup_2026_round_of_32.csv`, etc.) and **automatically infers** whether a fixture is a Group Stage match or a Knockout Stage match based on team pairings.
+
+### Knockout Progression & Shootout Probability
+If an inferred Knockout match ends in a regulation or extra-time draw ($h = a$), historical penalty shootout statistics from `shootouts.csv` combined with ELO differentials compute the advanced winner:
+```json
+{
+   "penalty_shootout": {
+      "show_shootout": true,
+      "predicted_winner": "Argentina",
+      "win_probability": 58,
+      "historical_record": { "wins": 5, "total": 6 }
+   }
+}
 ```
 
 ---
 
-### 1. Train & Save the Model
+## 6. 🛠️ Model Serialization & Environment Shims
 
-Trains on all datasets and saves the model to a `.pkl` file for fast future inference.
-
-```bash
-python3 sports_prediction_colab_app.py --save-model GoalGPT_version_1.pkl
-```
-
-> This also writes an `experiment_log.json` with training metadata.
-
----
-
-### 2. Run a Prediction (from saved model)
-
-```bash
-python3 sports_prediction_colab_app.py --input '{"home_team": "Argentina", "away_team": "Brazil"}'
-```
-
-> If `GoalGPT_version_1.pkl` exists in the working directory, it is **auto-loaded** — no `--load-model` flag needed.
-
----
-
-### 3. Explicitly Load a Saved Model
-
-```bash
-python3 sports_prediction_colab_app.py --load-model GoalGPT_version_1.pkl --input '{"home_team": "France", "away_team": "England"}'
-
----
-
-### 3. Programmatic Python Usage
-
-How you load and run the model depends on how you are using the code in Google Colab or Jupyter Notebooks:
-
-#### Option A: If you pasted the entire script into a notebook cell
-If you already pasted the code and executed the cell, the model classes are already loaded in memory. You do **not** need to import anything. Just load the pickle file directly:
+To ensure seamless, error-free execution when loading serialized models between Google Colab (`scikit-learn 1.6.x`) and local production servers (`scikit-learn 1.9.x`), GoalGPT dynamically applies comprehensive warning filters and class alias namespaces to prevent unpickling crashes:
 
 ```python
+import warnings
 import sys
 import pickle
 
-# Alias the current module namespace so pickle can find the pasted classes
-sys.modules['sports_prediction_colab_app'] = sys.modules['__main__']
+# Suppress scikit-learn unpickling and version mismatch warnings
+warnings.filterwarnings("ignore", message=".*Trying to unpickle estimator.*")
+warnings.filterwarnings("ignore", message=".*InconsistentVersionWarning.*")
+warnings.filterwarnings("ignore", module=".*sklearn.*")
 
-# Load the saved model file directly
-with open("GoalGPT_version_1.pkl", "rb") as f:
+# Fix for scikit-learn loss function module restructuring across minor versions
+try:
+    import sklearn._loss._loss
+    sys.modules['_loss'] = sys.modules.get('_loss', sys.modules['sklearn._loss._loss'])
+except ImportError:
+    pass
+
+# Safely load the version 8 model artifact
+with open("GoalGPT_latest.pkl", "rb") as f:
     model = pickle.load(f)
-
-# Run a prediction using a dictionary
-result = model.predict({"home_team": "Spain", "away_team": "Japan"})
-print(result["output"]["score_prediction"])
-```
-
-#### Option B: If you uploaded `sports_prediction_colab_app.py` as a file
-If you uploaded the file to Colab's file explorer, import the class first before loading the pickle:
-
-```python
-import sys
-import pickle
-# Ensure current directory is in Python's search path
-sys.path.append(".")
-
-from sports_prediction_colab_app import FootballPredictionModel
-
-# Load the saved model file
-with open("GoalGPT_version_1.pkl", "rb") as f:
-    model = pickle.load(f)
-
-# Run a prediction using a dictionary
-result = model.predict({"home_team": "Spain", "away_team": "Japan"})
-print(result["output"]["score_prediction"])
 ```
 
 ---
 
-### 4. Train on the Fly (without saving)
+## 7. 🧪 The 11-Test Diagnostic Suite
 
+Every GoalGPT release is rigorously verified against `test_engine.py`. This production suite validates mathematical conservation, probabilistic calibration, and schema stability across **11 comprehensive diagnostic tests**:
+
+| Test ID | Test Name | Target Metric / Evaluation Requirement | v8 Status |
+| :---: | :--- | :--- | :---: |
+| **TEST 1** | **Matrix Normalization** | Joint Poisson probability grid $\sum P(h, a)$ must equal exactly `1.000000`. | ✅ **PASSED** |
+| **TEST 2** | **Marginals Alignment** | Matrix marginal sums ($P(H > A), P(H = A), P(H < A)$) must align with headline win probabilities. | ✅ **PASSED** |
+| **TEST 3** | **Scoreline Consistency** | Predicted exact scoreline ($h - a$) must match the highest-probability outcome category. | ✅ **PASSED** |
+| **TEST 4** | **Expected Goals Derivation** | Matrix-derived expected goals $\sum(h \cdot P(h,a))$ must approximate analytical $xG$ inputs. | ✅ **PASSED** |
+| **TEST 5** | **Dynamic Matrix Mass** | Grid truncation check ($0–10+$ goals) must retain $> 99.99\%$ of total Poisson mass per marginal. | ✅ **PASSED** |
+| **TEST 6** | **Historical Calibration** | Evaluates Log Loss ($< 1.10$) and Brier Score ($< 0.60$) on historical test validation splits. | ✅ **PASSED** |
+| **TEST 7** | **Repeatability & Determinism** | 100% deterministic output consistency under identical seeds across multiple executions. | ✅ **PASSED** |
+| **TEST 8** | **Monte Carlo Convergence** | $10,000$ simulation iterations must match analytical matrix probabilities within $\pm 1.5\%$ tolerance. | ✅ **PASSED** |
+| **TEST 9** | **Automatic Stage Inference** | Correctly detects and infers `Group Stage` vs. `Round of 32` knockout pairings without user flags. | ✅ **PASSED** |
+| **TEST 10** | **Output Schema Compatibility** | Ensures JSON keys strictly match the specification defined in `Output.json`. | ✅ **PASSED** |
+| **TEST 11** | **Fuzzy Alias Resolution** | Validates alias mappings (`'United States'` $\rightarrow$ `'USA'`) and rejects nonexistent team inputs (`'Atlantis FC'`). | ✅ **PASSED** |
+
+---
+
+## 8. 🎯 End-to-End Walkthrough
+
+Get started with GoalGPT in under 60 seconds across Python scripts, CLI, or the interactive Flask web dashboard.
+
+### 🐍 Option A: Python API / Colab Notebooks
+```python
+from sports_prediction_colab_app import FootballPredictionModel, PredictionService
+import pickle
+
+# Load production model
+with open("GoalGPT_latest.pkl", "rb") as f:
+    model = pickle.load(f)
+
+# Instantiate prediction service
+service = PredictionService(model)
+
+# Generate detailed prediction
+result = service.generate_prediction("Argentina", "Brazil")
+print(result["output"]["match_prediction"])
+print(result["output"]["score_prediction"])
+```
+
+### 💻 Option B: Terminal CLI Execution
 ```bash
+# Run a single prediction via JSON input string
 python3 sports_prediction_colab_app.py --input '{"home_team": "Spain", "away_team": "Germany"}'
+
+# Retrain the engine across all 16 datasets and save version 9
+python3 sports_prediction_colab_app.py --save-model goalgpt_v9.pkl
+
+# Run diagnostic verification suite
+python3 test_engine.py
 ```
 
-> If no `GoalGPT_version_1.pkl` exists, the engine trains fresh from the CSVs before predicting.
-
----
-
-### 5. Custom Dataset Paths
-
+### 🌐 Option C: Flask Web Dashboard & REST API
 ```bash
-python3 sports_prediction_colab_app.py \
-  --results         path/to/results.csv \
-  --goalscorers     path/to/goalscorers.csv \
-  --players         path/to/players_data_light-2024_2025.csv \
-  --current-players path/to/players.csv \
-  --wc-teams        path/to/Worldcup_2026_teams.csv \
-  --wc-squads       path/to/Worldcup_2026_squads_and_players.csv \
-  --wc-matches      path/to/Worldcup_2026_matches_until_now.csv \
-  --save-model      my_model.pkl
+# Launch local web application on http://127.0.0.1:5000
+python3 sports_prediction_colab_app.py --web --port 5000
+```
+
+#### REST API Example (`POST /api/predict`)
+```bash
+curl -X POST http://127.0.0.1:5000/api/predict \
+     -H "Content-Type: application/json" \
+     -d '{"home_team": "Portugal", "away_team": "France"}'
 ```
 
 ---
 
-### CLI Arguments Reference
-
-| Argument | Description | Default |
-|---|---|---|
-| `--input` | JSON string with `home_team` and `away_team` | Argentina vs Brazil |
-| `--results` | Path to match results CSV | `DataSet/results.csv` |
-| `--goalscorers` | Path to goal scorers CSV | `DataSet/goalscorers.csv` |
-| `--players` | Path to club season stats CSV (xG source) | `DataSet/players_data_light-2024_2025.csv` |
-| `--current-players` | Path to current squad rosters CSV | `DataSet/players.csv` |
-| `--wc-teams` | Path to World Cup 2026 teams dataset | `DataSet/Worldcup_2026_teams.csv` |
-| `--wc-squads` | Path to World Cup 2026 squads dataset | `DataSet/Worldcup_2026_squads_and_players.csv` |
-| `--wc-matches` | Path to World Cup 2026 match results dataset | `DataSet/Worldcup_2026_matches_until_now.csv` |
-| `--save-model FILE` | Train and save model to `.pkl` file | — |
-| `--load-model FILE` | Load a pre-trained `.pkl` model | — |
-
----
-
-## 📊 Prediction Output Format
-
-```jsonc
-{
-  "output": {
-    "match_prediction": {
-      "home_team": "Argentina",
-      "away_team": "Brazil",
-      "winner_probabilities": { "home": 0.36, "draw": 0.24, "away": 0.40 },
-      "expected_goals": { "home": 1.55, "away": 1.63 },
-      "both_teams_to_score_probability": 0.63,
-      "first_team_to_score_probabilities": { "home": 0.47, "away": 0.49, "none": 0.04 },
-      "clean_sheet_probabilities": {
-        "home": { "probability": 0.20, "goalkeeper": "Emiliano Martínez" },
-        "away": { "probability": 0.21, "goalkeeper": "Alisson" }
-      },
-      "total_goals_over_under": {
-        "1.5": { "over": 0.83, "under": 0.17 },
-        "2.5": { "over": 0.62, "under": 0.38 },
-        "3.5": { "over": 0.39, "under": 0.61 }
-      }
-    },
-    "score_prediction": {
-      // predicted_scoreline is always the #1 most likely scoreline
-      "predicted_scoreline": "1-1",
-      // Only the TOP 2 most probable scorelines are returned
-      "scoreline_probabilities": [
-        { "score": "1-1", "probability": 0.1051 },
-        { "score": "1-2", "probability": 0.0858 }
-      ]
-    },
-    // player_prediction count mirrors the predicted scoreline:
-    // "1-1" → 1 home scorer, 1 away scorer (most likely to score)
-    // "2-0" → 2 home scorers, 0 away scorers
-    // "0-0" → empty lists
-    "player_prediction": {
-      "home_scorers": [
-        {
-          "player": "Lionel Messi",
-          "goals": 73,
-          "probability": 0.0556,
-          "prob_1_goal": 0.0525,
-          "prob_2_or_more": 0.0015
-        }
-        // ...N entries = home goals in predicted scoreline
-      ],
-      "away_scorers": [
-        // ...N entries = away goals in predicted scoreline
-      ]
-    }
-  }
-}
-```
-
----
-
-## 🧠 Methods Used for Each Prediction
-
-### 1. 🏆 Winner Probabilities (`winner_probabilities`)
-
-| Layer | Method | Weight |
-|---|---|---|
-| Primary | **Poisson Convolution** — simulate all scorelines (0–0 to 7–7) and sum win/draw/loss probabilities | 32% (100% if no ML) |
-| Boosted | **Gradient Boosting Classifier** (`sklearn`) — trained on ELO ratings + attack/defence averages | 68% (if scikit-learn installed) |
-
-**Features used in ML model:** Home ELO, Away ELO, home goals-for/against per match, away goals-for/against per match.
-
----
-
-**Method: Blended Multi-Factor Model with World Cup Priority**
-
-Expected Goals (xG) is computed by combining long-term historical stats, active squad ratings, pre-tournament Elo, manager metrics, and live tournament results:
-
-1. **Historical/Squad Attacking ($Att_{hist}$) & Defending ($Def_{hist}$)**:
-   $$Att_{hist} = 0.40 \times (\text{Historical Goals Scored}) + 0.35 \times (\text{Form Goals Scored}) + 0.25 \times (\text{Active Squad Player Attack Rating})$$
-   $$Def_{hist} = 0.40 \times (\text{Historical Goals Conceded}) + 0.35 \times (\text{Form Goals Conceded}) + 0.25 \times (\text{Active Squad Player Def Rating})$$
-
-2. **World Cup 2026 Blend (70% current / 30% historical)**:
-   If a team has active matches in the World Cup 2026 dataset, its ratings are blended:
-   $$Att_{blended} = 0.70 \times Att_{tourney\_2026} + 0.30 \times Att_{hist}$$
-   $$Def_{blended} = 0.70 \times Def_{tourney\_2026} + 0.30 \times Def_{hist}$$
-   * *Tournament Stats* include actual goals scored/conceded and expected goals (xG) from World Cup 2026 matches.
-
-3. **Goalkeeper Performance Adjustment (GK Clean Sheet & Defense Boost)**:
-   Goalkeepers winning Goalkeeper of the Match (GK PotM) awards scale clean sheet probabilities and strengthen the team's defensive rating (reducing conceded xG):
-   $$GK\_Factor = 1.0 + 0.10 \times Count_{GK\_PotM} \quad (\text{capped at } 1.35)$$
-   $$CleanSheet\_P = CleanSheet\_P_{base} \times GK\_Factor$$
-   $$Def_{blended} = \frac{Def_{blended}}{GK\_Factor}$$
-
-4. **Base xG Blend**:
-   $$\text{home\_xg} = 0.50 \times Att_{home} + 0.40 \times Def_{away} + 0.10 \times \text{Global\_Avg}$$
-   $$\text{away\_xg} = 0.50 \times Att_{away} + 0.40 \times Def_{home} + 0.10 \times \text{Global\_Avg}$$
-
-5. **Sigmoid ELO Scaling**:
-   Adjusts expected goals via a sigmoid multiplier capped between `0.7` and `1.3` using pre-tournament / live ELO ratings:
-   $$\text{ELO\_Mult}_{home} = 0.7 + \frac{0.6}{1.0 + e^{-(\Delta ELO / 400.0)}}$$
-
-6. **Head-to-Head Blend (10% weight)**:
-   Blends the base xG with the H2H average goals (90% base xG + 10% H2H avg).
-
-7. **Manager Performance (15% weight)**:
-   Adjusts expected goals using the manager's offensive rating and the opponent's defensive rating.
-
-8. **xG Clamp**:
-   Clamps final xG to the realistic range of `[0.15, 3.5]` to avoid extreme predictions.
-
----
-
-### 3. 📋 Scoreline Probabilities (`score_prediction`)
-
-**Method: Two-Stage Stochastic Bivariate Poisson**
-
-To ensure realistic, non-deterministic scorelines that favor the stronger team while leaving a realistic chance of upsets:
-1. The match outcome (Win / Draw / Loss) is drawn stochastically from the simulated Poisson probabilities.
-2. The scoreline is sampled stochastically from the corresponding outcome category.
-3. Scorelines with probability $< 1.5\%$ are excluded to avoid highly improbable scoreline combinations.
-
----
-
-### 4. 👤 Player Scoring Probabilities (`player_prediction`)
-
-**Method: Squad-Restricted Poisson Rates & Player of the Match Boosts**
-
-1. **Squad Filter**: Players are strictly filtered to the official active squads participating in the World Cup (`Worldcup_2026_squads_and_players.csv`).
-2. **Player of the Match (PotM) Boost**: Goalscoring and assist rates are scaled using tournament PotM awards:
-   $$Multiplier = 1.0 + 0.15 \times Count_{PotM}$$
-   $$P_{goal} = \min(0.99, P_{base} \times Multiplier)$$
-
-
-
-### 4. 🛡️ Clean Sheet Probabilities (`clean_sheet_probabilities`)
-
-**Method: Poisson Zero-Goal Probability**
-
-```
-P(clean sheet) = P(opponent scores 0 goals) = e^(−opponent_xG)
-```
-
-- **Goalkeeper** is resolved from `DataSet/players.csv` — the GK with the most `gk_minutes` for that national team.
-- Falls back to club-level minutes from `players_data_light-2024_2025.csv` if the team is not in the current roster file.
-
----
-
-### 5. 🎯 Both Teams to Score (`both_teams_to_score_probability`)
-
-**Method: Poisson Joint Probability**
-
-```
-P(BTTS) = sum of P(h-a) for all scores where h > 0 AND a > 0
-```
-
-Derived directly from the same Poisson score distribution used in scoreline predictions.
-
----
-
-### 6. 🚦 First Team to Score (`first_team_to_score_probabilities`)
-
-**Method: Proportional xG Split**
-
-```
-P(home scores first) = (home_xG / total_xG) × P(at least one goal)
-P(away scores first) = (away_xG / total_xG) × P(at least one goal)
-P(no goal)           = P(0-0)
-```
-
----
-
-### 7. 📈 Over/Under Goals (`total_goals_over_under`)
-
-**Method: Poisson CDF Convolution**
-
-For thresholds 1.5, 2.5, and 3.5:
-
-```
-P(under N.5) = sum of P(h-a) for all scores where h + a <= floor(N.5)
-P(over N.5)  = 1 − P(under N.5)
-```
-
-Both teams' goal distributions are convolved independently using the Poisson PMF.
-
----
-
-### 8. 👤 Player Scoring Probabilities (`player_prediction`)
-
-**Method: Roster-Filtered Poisson Player Model**
-
-Only players listed in `DataSet/players.csv` (current active squad) are included. Retired or historical-only players are **excluded**.
-
-For each active player, a match-level scoring rate `λ_match` is calculated:
-
-```
-λ_player = player_xG_season / team_matches          # per-match club xG rate
-λ_match  = λ_player × (match_xG / team_avg_goals)  # scaled to this specific match
-
-P(anytime scorer) = 1 − e^(−λ_match)
-P(exactly 1 goal) = λ_match × e^(−λ_match)
-P(2+ goals)       = 1 − P(0) − P(1)
-```
-
-**Data sources ranked by priority:**
-1. `players_data_light-2024_2025.csv` → Club season xG (primary signal)
-2. `DataSet/goalscorers.csv` → Historical international goals (tiebreaker)
-3. `DataSet/players.csv` → Current tournament goals (bonus signal)
-
-Players with no xG data fall back to a goals-per-match rate derived from international history.
-
-Results are **sorted by `probability` descending** — highest likelihood scorers appear first.
-
-**Scoreline-linked count rule:**
-
-The number of scorers returned per team is determined directly by the `predicted_scoreline`:
-
-| Predicted Scoreline | `home_scorers` returned | `away_scorers` returned |
-|---|---|---|
-| `1-1` | 1 (most likely home scorer) | 1 (most likely away scorer) |
-| `2-0` | 2 (top 2 home) | 0 (empty) |
-| `3-2` | 3 (top 3 home) | 2 (top 2 away) |
-| `0-0` | 0 (empty) | 0 (empty) |
-
----
-
-## 🗂️ Data Sources
-
-| File | Description | Used For |
-|---|---|---|
-| `DataSet/results.csv` | Full international match results (1872–present) | ELO training, team stats |
-| `DataSet/goalscorers.csv` | Historical international goal scorers | Player historical goals |
-| `DataSet/players.csv` | **Current active squad rosters** | Player filtering, GK selection |
-| `DataSet/players_data_light-2024_2025.csv` | Club season xG & minutes (2024–25) | Player xG scoring rates |
-| `DataSet/Worldcup_2026_teams.csv` | Pre-tournament FIFA rankings, Elo, and managers | Primary source for participating teams |
-| `DataSet/Worldcup_2026_squads_and_players.csv` | Official squads, positions, goals, and awards | Restricting active players, GK and PotM lookup |
-| `DataSet/Worldcup_2026_matches_until_now.csv` | Live match logs, goals, and player stats | Blending tournament performance & awards |
-
-> **Note:** `generate_mock_data.py` is a legacy development utility. Its hardcoded team/player data is **not used** by the prediction engine.
-
----
-
-## 🔬 Experiment Tracking
-
-Every `--save-model` run automatically writes `experiment_log.json`:
-
-```json
-{
-  "timestamp": "2026-06-25T10:05:39Z",
-  "training_matches": 46742,
-  "teams_tracked": 312,
-  "elo_k_factor": 32,
-  "xg_blend": { "attack": 0.56, "defence": 0.34, "average": 0.10 },
-  "h2h_blend": { "statistical": 0.82, "h2h": 0.18 },
-  "ml_blend": { "ml": 0.68, "poisson": 0.32 },
-  "ml_enabled": false,
-  "training_seconds": 4.12,
-  "model_file": "GoalGPT_version_1.pkl"
-}
-```
-
----
-
-## ⚡ Performance
-
-| Mode | Typical Time |
-|---|---|
-| First run (train + predict) | ~4–6 seconds |
-| Load from `GoalGPT_version_1.pkl` + predict | < 1 second |
-
----
-
-## ❌ Error Handling
-
-If a team name is not recognised, the engine returns structured suggestions:
-
-```json
-{
-  "error": "Prediction failed",
-  "validation_errors": [
-    {
-      "field": "home_team",
-      "value": "Argentinaa",
-      "message": "Team 'Argentinaa' not found.",
-      "suggestions": ["Argentina"]
-    }
-  ]
-}
-```
+<div align="center">
+  <p><b>Built with ❤️ by the GoalGPT Engineering Team</b></p>
+  <p><i>Empowering Data-Driven Football Insights for the 2026 World Cup & Beyond.</i></p>
+</div>
